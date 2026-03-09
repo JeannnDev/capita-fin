@@ -1,5 +1,5 @@
 import { getFinancialSummary } from "@/actions/finance";
-import { BalanceCard } from "@/components/BalanceCard";
+import { BalanceCard, OverviewCard } from "@/components/BalanceCard";
 import { CategorySummary } from "@/components/CategorySummary";
 import { CategoryChart } from "@/components/CategoryChart";
 import { AddTransactionDialog } from "@/components/AddTransactionDialog";
@@ -15,7 +15,8 @@ import {
   PieChart,
   TrendingUp,
   Layers,
-  ArrowUpCircle
+  ArrowUpCircle,
+  LayoutDashboard
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/UserMenu";
+import { Badge } from "@/components/ui/badge";
 
 export default async function Home() {
   const session = await auth.api.getSession({
@@ -68,31 +70,37 @@ export default async function Home() {
     color: getColorForIndex(categoriesMapped.indexOf(c))
   }));
 
+  const userInitials = session?.user?.name
+    ? session.user.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase()
+    : "U";
+
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950/20">
-      {/* Sidebar for Desktop */}
       <AppSidebar />
 
       <SidebarInset className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
-        {/* Dashboard Top Navigation */}
         <header className="h-16 md:h-20 flex items-center justify-between px-4 md:px-6 lg:px-10 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-3xl sticky top-0 z-40">
-          {/* Mobile: Sidebar trigger + greeting */}
           <div className="flex items-center space-x-3">
-            <SidebarTrigger className="md:hidden" />
+            <SidebarTrigger className="h-10 w-10 md:h-12 md:w-12 rounded-2xl md:hidden" />
             <div className="flex flex-col">
-              <h1 className="text-base md:text-xl font-black tracking-tighter uppercase leading-none hidden md:block">Visão Geral</h1>
-              <div className="md:hidden">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">CapitaFin</p>
+              <h1 className="text-base md:text-xl font-black tracking-tighter uppercase leading-none hidden md:block">
+                Visão <span className="text-primary">Analítica</span>
+              </h1>
+              <div className="md:hidden flex items-center space-x-2">
+                <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center border border-primary/20">
+                  <LayoutDashboard className="h-5 w-5 text-white" />
+                </div>
+                <span className="font-black text-sm tracking-tighter uppercase leading-none">CapitaFin</span>
               </div>
               <div className="mt-1 hidden md:block">
                 <Breadcrumb>
-                  <BreadcrumbList className="text-[10px] uppercase tracking-widest font-black">
+                  <BreadcrumbList className="text-[9px] uppercase tracking-[0.2em] font-black opacity-60">
                     <BreadcrumbItem>
                       <BreadcrumbLink href="/">Home</BreadcrumbLink>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
-                      <BreadcrumbPage className="text-primary">Dashboard</BreadcrumbPage>
+                      <BreadcrumbPage className="text-primary">Controle Financeiro</BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
@@ -119,75 +127,67 @@ export default async function Home() {
         </header>
 
         {/* Dashboard Main Viewport */}
-        <main className="p-6 lg:p-10 space-y-8 pb-32 md:pb-10">
+        <main className="p-4 md:p-8 space-y-10 pb-32 md:pb-10 text-slate-900 dark:text-slate-100">
+          <div className="flex flex-col space-y-10">
+            <BalanceCard
+              income={result.income}
+              totalSpent={result.totalSpent}
+              totalLimit={result.summary.reduce((acc, curr) => acc + curr.limite, 0)}
+            />
 
-          {/* Hero Grid: Layout following the Laptop/Phone image */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10">
-            {/* 2/3 Column on Desktop */}
-            <div className="lg:col-span-8 flex flex-col space-y-8">
-
-              {/* Stats Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <BalanceCard
-                    income={result.income}
-                    totalSpent={result.totalSpent}
-                    totalLimit={result.summary.reduce((acc, curr) => acc + curr.limite, 0)}
-                  />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
+              <div className="lg:col-span-8 flex flex-col space-y-6">
+                <div className="flex items-center justify-between px-2">
+                  <h3 className="text-[10px] font-black tracking-[0.2em] uppercase flex items-center space-x-2 text-slate-400">
+                    <PieChart className="h-4 w-4 text-primary" />
+                    <span>Análise de Fluxo</span>
+                  </h3>
+                  <AddTransactionDialog categories={categoriesMapped} isGuest={isGuest} />
                 </div>
-              </div>
-
-              {/* Center Content Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-6 flex flex-col">
-                  <div className="flex items-center justify-between px-2">
-                    <h3 className="text-xl font-black tracking-tighter uppercase flex items-center space-x-2">
-                      <PieChart className="h-4 w-4 text-primary" />
-                      <span>Distribuição</span>
-                    </h3>
-                    <AddTransactionDialog categories={categoriesMapped} isGuest={isGuest} />
-                  </div>
+                <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[3rem] p-10 shadow-sm">
                   <CategoryChart data={chartData} totalIncome={result.income} />
                 </div>
+              </div>
 
-                <div className="space-y-6 flex flex-col">
-                  <div className="flex items-center justify-between px-2">
-                    <h3 className="text-xl font-black tracking-tighter uppercase flex items-center space-x-2">
-                      <TrendingUp className="h-4 w-4 text-primary" />
-                      <span>IA Insight</span>
-                    </h3>
-                    <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-primary active:scale-95 transition-all">
-                      Explorar <ChevronRight size={14} className="ml-1" />
+              <div className="lg:col-span-4 flex flex-col space-y-8">
+                <div className="h-72">
+                  <OverviewCard
+                    balance={result.income - result.totalSpent}
+                    income={result.income}
+                    totalSpent={result.totalSpent}
+                    initials={userInitials}
+                  />
+                </div>
+
+                <div className="flex-1 bg-white dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-8 flex flex-col justify-center group hover:bg-primary/[0.02] transition-colors relative overflow-hidden shadow-sm">
+                  <ArrowUpCircle className="absolute top-4 right-4 h-6 w-6 text-primary opacity-20" />
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Resumo Analítico</span>
+                  <p className="text-xl font-black tracking-tighter leading-none italic mb-4 uppercase">"Controle Ativo"</p>
+                  <p className="text-[11px] text-slate-500 font-medium leading-relaxed italic border-l-2 border-primary/20 pl-4 py-1">
+                    Você está mantendo uma margem de segurança de {result.income > 0 ? (((result.income - result.totalSpent) / result.income) * 100).toFixed(1) : 0}% este mês.
+                  </p>
+                  <div className="mt-8">
+                    <Button variant="outline" size="sm" className="rounded-full px-6 text-[10px] font-black uppercase tracking-[0.1em] border-slate-200 dark:border-slate-800 hover:bg-primary hover:text-white transition-all">
+                      Ver Relatório
                     </Button>
-                  </div>
-                  <div className="flex-1 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-8 flex flex-col justify-center group hover:bg-primary/[0.02] transition-colors relative overflow-hidden">
-                    <ArrowUpCircle className="absolute top-4 right-4 h-6 w-6 text-primary opacity-20 group-hover:opacity-100 transition-opacity" />
-                    <p className="text-xl font-black tracking-tighter leading-none italic mb-4">"Economia acima da média"</p>
-                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                      Seu gasto em <span className="text-primary font-bold">Fixas</span> foi otimizado este mês, permitindo maior alocação em investimentos.
-                    </p>
-                    <div className="mt-6 flex items-center space-x-2">
-                      <div className="h-1 flex-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-primary w-2/3" />
-                      </div>
-                      <span className="text-[10px] font-black text-primary">68%</span>
-                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* 1/3 Column on Desktop (Vertical List) */}
-            <div className="lg:col-span-4 flex flex-col space-y-8">
-              <div className="flex items-center justify-between px-2">
-                <h3 className="text-xl font-black tracking-tighter uppercase flex items-center space-x-2">
-                  <Layers className="h-4 w-4 text-primary" />
-                  <span>Planos 50-25-15</span>
-                </h3>
-                <SetIncomeDialog isGuest={isGuest} />
-              </div>
-              <div className="flex-1 space-y-4 pr-1">
-                <CategorySummary summary={categoriesMapped} />
+              <div className="lg:col-span-12 flex flex-col space-y-6 mt-4">
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center space-x-4">
+                    <h3 className="text-[10px] font-black tracking-[0.2em] uppercase flex items-center space-x-2 text-slate-400">
+                      <Layers className="h-4 w-4 text-primary" />
+                      <span>Planejamento por Categoria</span>
+                    </h3>
+                    <Badge variant="secondary" className="rounded-xl px-4 py-1 text-[9px] bg-primary/5 text-primary border-none font-black uppercase tracking-widest">Controle 50-25-15</Badge>
+                  </div>
+                  <SetIncomeDialog isGuest={isGuest} />
+                </div>
+                <div className="pr-1">
+                  <CategorySummary summary={categoriesMapped} />
+                </div>
               </div>
             </div>
           </div>
