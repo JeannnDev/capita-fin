@@ -28,6 +28,7 @@ import {
   BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { UserMenu } from "@/components/UserMenu";
 
 export default async function Home() {
   const session = await auth.api.getSession({
@@ -112,15 +113,8 @@ export default async function Home() {
               <Bell className="h-4 w-4 md:h-5 md:w-5" />
             </Button>
             <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
-            <div className="flex items-center space-x-2 bg-white dark:bg-slate-900 p-1 md:p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm shadow-slate-200 dark:shadow-none">
-              <div className="hidden md:flex flex-col items-end px-2">
-                <span className="text-[10px] font-black tracking-widest text-primary uppercase">{month}/{year}</span>
-                <span className="text-[9px] font-bold text-slate-500 uppercase px-1">Ativo</span>
-              </div>
-              <Button variant="secondary" size="icon" className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:scale-105 transition-transform">
-                <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              </Button>
-            </div>
+            {/* User Info Badge */}
+            <UserMenu />
           </div>
         </header>
 

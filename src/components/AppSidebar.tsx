@@ -10,7 +10,8 @@ import {
     Plus,
     Sparkles,
     Wallet,
-    Target
+    Target,
+    Calendar
 } from "lucide-react";
 import {
     Sidebar,
@@ -98,17 +99,7 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter className="p-4 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex items-center space-x-3 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors cursor-pointer group">
-                    <UserMenu />
-                    <div className="flex flex-col min-w-0 flex-1">
-                        <p className="text-sm font-black truncate leading-tight">
-                            <UserName />
-                        </p>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate">
-                            <UserEmail />
-                        </p>
-                    </div>
-                </div>
+                <CalendarBadge />
             </SidebarFooter>
         </Sidebar>
     );
@@ -129,13 +120,20 @@ function SidebarSearch() {
     );
 }
 
-function UserName() {
-    const { data: session } = authClient.useSession();
-    return <>{session?.user?.name ?? "Minha Conta"}</>;
-}
+function CalendarBadge() {
+    const date = new Date();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
 
-function UserEmail() {
-    const { data: session } = authClient.useSession();
-    const email = session?.user?.email ?? "";
-    return <>{email || "Gerenciar Plano"}</>;
+    return (
+        <div className="flex items-center space-x-3 p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm shadow-slate-200 dark:shadow-none">
+            <div className="flex flex-col items-end px-2">
+                <span className="text-[10px] font-black tracking-widest text-primary uppercase">{month}/{year}</span>
+                <span className="text-[9px] font-bold text-slate-500 uppercase px-1">Ativo</span>
+            </div>
+            <div className="h-8 w-8 md:h-10 md:w-10 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center">
+                <Calendar className="h-4 w-4" />
+            </div>
+        </div>
+    );
 }
