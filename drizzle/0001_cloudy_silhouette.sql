@@ -1,0 +1,1 @@
+-- ALTER TABLE "incomes" ADD COLUMN "tipo" text DEFAULT 'Salário' NOT NULL;
