@@ -26,10 +26,13 @@ import {
     SidebarGroupContent,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/UserMenu";
 import { authClient } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
+import { getAIInsights } from "@/actions/finance";
 
 export function AppSidebar() {
     const pathname = usePathname();
@@ -85,14 +88,7 @@ export function AppSidebar() {
                 </SidebarGroup>
 
                 <div className="mt-8 px-3">
-                    <div className="bg-primary/5 rounded-3xl p-6 border border-primary/10 relative overflow-hidden group">
-                        <div className="relative z-10">
-                            <Sparkles className="h-8 w-8 text-primary mb-3 animate-pulse" />
-                            <h3 className="text-sm font-black uppercase tracking-tight">Análise IA</h3>
-                            <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-2">Veja insights automáticos baseados na sua regra 50-25-15.</p>
-                        </div>
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full -mr-12 -mt-12 blur-2xl group-hover:bg-primary/20 transition-all duration-700" />
-                    </div>
+                    <AIAnalysisCard />
                 </div>
             </SidebarContent>
 
@@ -100,6 +96,76 @@ export function AppSidebar() {
                 <CalendarBadge />
             </SidebarFooter>
         </Sidebar>
+    );
+}
+
+function AIAnalysisCard() {
+    const [insight, setInsight] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [cooldown, setCooldown] = useState(0);
+
+    useEffect(() => {
+        if (cooldown > 0) {
+            const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [cooldown]);
+
+    const handleAnalyze = async () => {
+        if (cooldown > 0) return;
+
+        setLoading(true);
+        try {
+            const res = await getAIInsights();
+            setInsight(res);
+            setCooldown(60); // Inicia cooldown de 1 minuto
+        } catch (e) {
+            setInsight("Limite de requisições atingido. Tente novamente em breve.");
+            setCooldown(30); // Cooldown menor para erros
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="bg-primary/5 rounded-3xl p-6 border border-primary/10 relative overflow-hidden group">
+            <div className="relative z-10 space-y-3">
+                <div className="flex items-center justify-between">
+                    <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+                    {insight && !loading && (
+                        <button
+                            onClick={() => setInsight(null)}
+                            className="text-[10px] font-black uppercase text-slate-400 hover:text-primary transition-colors"
+                        >
+                            Limpar
+                        </button>
+                    )}
+                </div>
+                <div>
+                    <h3 className="text-sm font-black uppercase tracking-tight">Análise IA</h3>
+                    {!insight && !loading ? (
+                        <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1">Clique para receber conselhos personalizados do seu assistente Gemini.</p>
+                    ) : loading ? (
+                        <div className="flex flex-col items-center py-4 space-y-2">
+                            <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <span className="text-[9px] font-black uppercase text-primary animate-pulse">Consultando o Cérebro...</span>
+                        </div>
+                    ) : (
+                        <div className="text-[11px] text-slate-600 font-bold leading-relaxed mt-2 whitespace-pre-wrap max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                            {insight}
+                        </div>
+                    )}
+                </div>
+                <Button
+                    onClick={handleAnalyze}
+                    disabled={loading || cooldown > 0}
+                    className="w-full h-10 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale"
+                >
+                    {loading ? "Processando..." : cooldown > 0 ? `Aguarde ${cooldown}s` : insight ? "Recalcular" : "Analisar Agora"}
+                </Button>
+            </div>
+            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full -mr-12 -mt-12 blur-2xl group-hover:bg-primary/20 transition-all duration-700" />
+        </div>
     );
 }
 

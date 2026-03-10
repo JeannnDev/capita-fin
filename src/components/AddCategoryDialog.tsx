@@ -38,6 +38,7 @@ export function AddCategoryDialog({ onSuccess }: AddCategoryDialogProps) {
         try {
             await addCategory(nome, percentual);
             setOpen(false);
+            window.location.reload();
             onSuccess?.();
         } catch (e) {
             console.error(e);

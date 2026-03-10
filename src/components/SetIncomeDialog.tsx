@@ -43,6 +43,7 @@ export function SetIncomeDialog({ isGuest, children }: SetIncomeDialogProps) {
         try {
             await upsertIncome(valor, month, year);
             setOpen(false);
+            window.location.reload();
         } catch (e) {
             console.error(e);
         } finally {

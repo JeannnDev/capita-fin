@@ -63,6 +63,7 @@ export function AddTransactionDialog({ categories: initialCategories, isGuest, c
         try {
             await addTransaction(categoryId, valor, descricao);
             setOpen(false);
+            window.location.reload();
         } catch (e) {
             console.error(e);
         } finally {

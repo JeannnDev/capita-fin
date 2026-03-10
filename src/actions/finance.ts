@@ -1,5 +1,6 @@
 "use server";
 
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "@/db";
 import { incomes, categories, transactions } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
@@ -75,7 +76,7 @@ export async function addTransaction(categoryId: string, valor: number, descrica
         valor,
         descricao,
     });
-    revalidatePath("/");
+    revalidatePath("/", "layout");
 }
 
 export async function upsertIncome(valor: number, month: number, year: number) {
@@ -102,7 +103,7 @@ export async function upsertIncome(valor: number, month: number, year: number) {
             ano: year,
         });
     }
-    revalidatePath("/");
+    revalidatePath("/", "layout");
 }
 
 export async function getHistoricalData() {
@@ -126,7 +127,11 @@ export async function getHistoricalData() {
         });
 
         const monthTransactions = await db.query.transactions.findMany({
-            where: sql`userid = ${userId} AND EXTRACT(MONTH FROM created_at) = ${month} AND EXTRACT(YEAR FROM created_at) = ${year}`
+            where: and(
+                eq(transactions.userId, userId),
+                sql`EXTRACT(MONTH FROM ${transactions.createdAt}) = ${month}`,
+                sql`EXTRACT(YEAR FROM ${transactions.createdAt}) = ${year}`
+            )
         });
 
         result.push({
@@ -153,7 +158,7 @@ export async function initializeDefaultCategories() {
     await db.insert(categories).values(
         defaults.map(d => ({ ...d, userId: userId }))
     );
-    revalidatePath("/");
+    revalidatePath("/", "layout");
 }
 
 export async function getTransactions() {
@@ -189,7 +194,7 @@ export async function deleteTransaction(id: string) {
             eq(transactions.userId, userId)
         )
     );
-    revalidatePath("/");
+    revalidatePath("/", "layout");
 }
 
 export async function updateCategoryPercent(id: string, percentual: number) {
@@ -204,7 +209,7 @@ export async function updateCategoryPercent(id: string, percentual: number) {
                 eq(categories.userId, userId)
             )
         );
-    revalidatePath("/");
+    revalidatePath("/", "layout");
 }
 
 export async function addCategory(nome: string, percentual: number) {
@@ -216,7 +221,7 @@ export async function addCategory(nome: string, percentual: number) {
         nome,
         percentual,
     });
-    revalidatePath("/");
+    revalidatePath("/", "layout");
 }
 
 export async function deleteCategory(id: string) {
@@ -230,5 +235,54 @@ export async function deleteCategory(id: string) {
             eq(categories.userId, userId)
         )
     );
-    revalidatePath("/");
+    revalidatePath("/", "layout");
+}
+
+export async function getAIInsights() {
+    const userId = await getUserId();
+    if (!userId) return "Conecte sua conta para receber análises inteligentes.";
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return "Configure a GEMINI_API_KEY no seu arquivo .env para ativar a IA.";
+
+    try {
+        const summary = await getFinancialSummary(new Date().getMonth() + 1, new Date().getFullYear());
+        const recentTransactions = await db.query.transactions.findMany({
+            where: eq(transactions.userId, userId),
+            limit: 5,
+            orderBy: (transactions, { desc }) => [desc(transactions.createdAt)],
+            with: { category: true }
+        });
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+        const prompt = `
+            Você é um assistente financeiro pessoal de elite. Analise os dados abaixo e forneça 3 dicas curtas, diretas e impactantes para o usuário.
+            A linguagem deve ser motivadora, profissional e ligeiramente informal (como um coach).
+            
+            DADOS ATUAIS:
+            - Renda Mensal: R$ ${summary.income}
+            - Gasto Total no Mês: R$ ${summary.totalSpent}
+            - Categorias (Nome, Porcentagem Ideal, Gasto Atual, Limite Calculado): 
+              ${summary.summary.map((s: any) => `${s.nome}: ${s.percentual}%, Gasto: R$ ${s.gasto}, Limite: R$ ${s.limite}`).join('\n')}
+            
+            TRANSAÇÕES RECENTES:
+            ${recentTransactions.map((t: any) => `- ${t.descricao}: R$ ${t.valor} (${t.category?.nome})`).join('\n')}
+
+            REGRAS:
+            1. Seja curto (máximo 2 frases por dica).
+            2. Fale sobre limites estourados se houver.
+            3. Dê uma dica de economia específica.
+            4. Se não houver gastos, incentive a começar a registrar.
+            5. Formate a saída como uma lista simples.
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text();
+    } catch (error) {
+        console.error("Erro na IA:", error);
+        return "Tive um probleminha para analisar seus dados agora. Tente novamente em breve!";
+    }
 }

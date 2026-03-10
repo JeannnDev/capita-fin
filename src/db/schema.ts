@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, uuid, real, integer, boolean } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
 export const users = pgTable("user", {
     id: text("id").primaryKey(),
@@ -81,3 +82,35 @@ export const transactions = pgTable("transactions", {
     descricao: text("descricao"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const usersRelations = relations(users, ({ many }) => ({
+    incomes: many(incomes),
+    categories: many(categories),
+    transactions: many(transactions),
+}));
+
+export const incomesRelations = relations(incomes, ({ one }) => ({
+    user: one(users, {
+        fields: [incomes.userId],
+        references: [users.id],
+    }),
+}));
+
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
+    user: one(users, {
+        fields: [categories.userId],
+        references: [users.id],
+    }),
+    transactions: many(transactions),
+}));
+
+export const transactionsRelations = relations(transactions, ({ one }) => ({
+    user: one(users, {
+        fields: [transactions.userId],
+        references: [users.id],
+    }),
+    category: one(categories, {
+        fields: [transactions.categoryId],
+        references: [categories.id],
+    }),
+}));
