@@ -59,6 +59,7 @@ export const incomes = pgTable("incomes", {
     valor: real("valor").notNull(),
     mes: integer("mes").notNull(),
     ano: integer("ano").notNull(),
+    tipo: text("tipo").default("Salário").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

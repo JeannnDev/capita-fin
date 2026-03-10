@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { cn } from "@/lib/utils";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  weight: ['400', '500', '600', '700', '800', '900']
-});
+import { FinanceProvider } from "@/lib/finance-context";
+import { TutorialProvider } from "@/lib/tutorial-context";
+import { TutorialOverlay } from "@/components/TutorialOverlay";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CapitaFin - Dashboard Premium",
-  description: "Gerencie suas finanças com inteligência. CapitaFin — capital de forma premium e sofisticada.",
+  title: "CapitaFin — Gestão Financeira",
+  description: "Gerencie suas finanças com inteligência. Contas, transações, metas e orçamento em um só lugar.",
 };
 
 export default function RootLayout({
@@ -33,21 +27,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={cn("font-sans", inter.variable)} suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased selection:bg-primary/20`}
-      >
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>
-            <SidebarProvider defaultOpen={true}>
+          <FinanceProvider>
+            <TutorialProvider>
               {children}
-            </SidebarProvider>
-          </TooltipProvider>
+              <TutorialOverlay />
+            </TutorialProvider>
+          </FinanceProvider>
         </ThemeProvider>
       </body>
     </html>

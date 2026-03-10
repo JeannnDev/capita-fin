@@ -21,7 +21,7 @@ export async function getFinancialSummary(month: number, year: number) {
         return { income: 0, summary: [], totalSpent: 0 };
     }
 
-    const currentIncome = await db.query.incomes.findFirst({
+    const currentIncomes = await db.query.incomes.findMany({
         where: and(
             eq(incomes.userId, userId),
             eq(incomes.mes, month),
@@ -41,7 +41,7 @@ export async function getFinancialSummary(month: number, year: number) {
         )
     });
 
-    const incomeValue = currentIncome?.valor || 0;
+    const incomeValue = currentIncomes.reduce((sum, i) => sum + i.valor, 0);
 
     const summary = userCategories.map((cat) => {
         const categoryGasto = monthTransactions
@@ -63,6 +63,7 @@ export async function getFinancialSummary(month: number, year: number) {
         income: incomeValue,
         summary,
         totalSpent: monthTransactions.reduce((sum, t) => sum + t.valor, 0),
+        incomes: currentIncomes
     };
 }
 
@@ -79,7 +80,7 @@ export async function addTransaction(categoryId: string, valor: number, descrica
     revalidatePath("/", "layout");
 }
 
-export async function upsertIncome(valor: number, month: number, year: number) {
+export async function upsertIncome(valor: number, month: number, year: number, tipo: string = "Salário") {
     const userId = await getUserId();
     if (!userId) throw new Error("Unauthorized");
 
@@ -87,7 +88,8 @@ export async function upsertIncome(valor: number, month: number, year: number) {
         where: and(
             eq(incomes.userId, userId),
             eq(incomes.mes, month),
-            eq(incomes.ano, year)
+            eq(incomes.ano, year),
+            eq(incomes.tipo, tipo)
         ),
     });
 
@@ -101,6 +103,7 @@ export async function upsertIncome(valor: number, month: number, year: number) {
             valor,
             mes: month,
             ano: year,
+            tipo
         });
     }
     revalidatePath("/", "layout");
@@ -118,7 +121,7 @@ export async function getHistoricalData() {
         const month = d.getMonth() + 1;
         const year = d.getFullYear();
 
-        const currentIncome = await db.query.incomes.findFirst({
+        const monthIncomes = await db.query.incomes.findMany({
             where: and(
                 eq(incomes.userId, userId),
                 eq(incomes.mes, month),
@@ -136,7 +139,7 @@ export async function getHistoricalData() {
 
         result.push({
             month: d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase(),
-            income: currentIncome?.valor || 0,
+            income: monthIncomes.reduce((sum, i) => sum + i.valor, 0),
             spent: monthTransactions.reduce((sum, t) => sum + t.valor, 0),
         });
     }

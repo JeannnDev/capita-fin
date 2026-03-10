@@ -56,14 +56,14 @@ export function AddCategoryDialog({ onSuccess }: AddCategoryDialogProps) {
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[440px] rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden bg-background">
-                <div className="p-1 w-full bg-gradient-to-r from-amber-400 via-primary to-amber-400" />
+                <div className="p-1 w-full bg-gradient-to-r from-orange-400 via-orange-600 to-orange-400" />
                 <div className="p-10">
                     <DialogHeader className="mb-8">
                         <div className="flex items-center space-x-4 mb-2">
-                            <div className="h-10 w-10 bg-amber-500/10 rounded-2xl flex items-center justify-center">
-                                <LayoutGrid className="h-5 w-5 text-amber-600" />
+                            <div className="h-10 w-10 bg-orange-500/10 rounded-2xl flex items-center justify-center">
+                                <LayoutGrid className="h-5 w-5 text-orange-600" />
                             </div>
-                            <DialogTitle className="text-3xl font-black tracking-tighter">Criar Categoria</DialogTitle>
+                            <DialogTitle className="text-3xl font-black tracking-tighter text-orange-600">Criar Categoria</DialogTitle>
                         </div>
                         <DialogDescription className="text-base font-medium opacity-60">
                             Adicione um novo eixo de gasto ao seu planejamento.
@@ -78,7 +78,7 @@ export function AddCategoryDialog({ onSuccess }: AddCategoryDialogProps) {
                                         id="nome"
                                         name="nome"
                                         placeholder="Ex: Assinaturas"
-                                        className="h-14 pl-6 rounded-2xl border-none bg-muted/30 font-bold focus-visible:ring-primary/20 transition-all"
+                                        className="h-14 pl-6 rounded-2xl border-none bg-muted/30 font-bold focus-visible:ring-orange-500/20 transition-all font-black"
                                         required
                                         autoFocus
                                     />
@@ -88,13 +88,13 @@ export function AddCategoryDialog({ onSuccess }: AddCategoryDialogProps) {
                             <div className="space-y-2">
                                 <Label htmlFor="percentual" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Peso Visual (%)</Label>
                                 <div className="relative group">
-                                    <Percent className="absolute right-6 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                    <Percent className="absolute right-6 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-orange-500 transition-colors" />
                                     <Input
                                         id="percentual"
                                         name="percentual"
                                         type="number"
                                         placeholder="0"
-                                        className="h-14 pl-6 pr-14 rounded-2xl border-none bg-muted/30 font-bold focus-visible:ring-primary/20 transition-all"
+                                        className="h-14 pl-6 pr-14 rounded-2xl border-none bg-muted/30 font-bold focus-visible:ring-orange-500/20 transition-all"
                                         required
                                     />
                                 </div>
@@ -102,7 +102,7 @@ export function AddCategoryDialog({ onSuccess }: AddCategoryDialogProps) {
                         </div>
 
                         <DialogFooter className="pt-2">
-                            <Button type="submit" className="w-full h-18 rounded-[2rem] font-black text-xl shadow-2xl shadow-primary/20 bg-primary hover:bg-primary/90 transition-all hover:scale-[1.02] active:scale-[0.98] text-white" disabled={loading}>
+                            <Button type="submit" className="w-full h-18 rounded-[2rem] font-black text-xl shadow-2xl shadow-orange-500/20 bg-orange-600 hover:bg-orange-700 transition-all hover:scale-[1.02] active:scale-[0.98] text-white" disabled={loading}>
                                 {loading ? (
                                     <div className="flex items-center space-x-2">
                                         <div className="h-2 w-2 bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
