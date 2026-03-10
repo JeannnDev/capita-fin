@@ -21,18 +21,31 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Plus, Sparkles, Receipt, Wallet, Type } from "lucide-react";
-import { addTransaction } from "@/actions/finance";
+import { addTransaction, getFinancialSummary } from "@/actions/finance";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useEffect } from "react";
 
 interface AddTransactionDialogProps {
-    categories: { id: string; nome: string }[];
+    categories?: { id: string; nome: string }[];
     isGuest?: boolean;
+    children?: React.ReactNode;
 }
 
-export function AddTransactionDialog({ categories, isGuest }: AddTransactionDialogProps) {
+export function AddTransactionDialog({ categories: initialCategories, isGuest, children }: AddTransactionDialogProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [categories, setCategories] = useState<any[]>(initialCategories || []);
+
+    useEffect(() => {
+        if (!initialCategories || initialCategories.length === 0) {
+            const fetchCats = async () => {
+                const data = await getFinancialSummary(new Date().getMonth() + 1, new Date().getFullYear());
+                setCategories(data.summary.map((s: any) => ({ id: s.id, nome: s.nome })));
+            };
+            fetchCats();
+        }
+    }, [initialCategories]);
 
     async function handleSubmit(formData: FormData) {
         if (isGuest) return;
@@ -61,9 +74,11 @@ export function AddTransactionDialog({ categories, isGuest }: AddTransactionDial
         return (
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
-                    <Button variant="default" className="rounded-[1.5rem] h-14 px-8 shadow-2xl shadow-primary/40 hover:shadow-primary/60 transition-all hover:scale-105 active:scale-95 bg-primary text-white font-black uppercase tracking-widest text-xs">
-                        <Plus className="mr-2 h-5 w-5" /> Registrar Gasto
-                    </Button>
+                    {children || (
+                        <Button variant="default" className="rounded-[1.5rem] h-14 px-8 shadow-2xl shadow-primary/40 hover:shadow-primary/60 transition-all hover:scale-105 active:scale-95 bg-primary text-white font-black uppercase tracking-widest text-xs">
+                            <Plus className="mr-2 h-5 w-5" /> Registrar Gasto
+                        </Button>
+                    )}
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[440px] rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden bg-background">
                     <div className="h-2 bg-primary w-full" />
@@ -96,9 +111,11 @@ export function AddTransactionDialog({ categories, isGuest }: AddTransactionDial
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="default" className="rounded-[1.5rem] h-14 px-8 shadow-2xl shadow-primary/40 hover:shadow-primary/60 transition-all hover:scale-105 active:scale-95 bg-primary text-white font-black uppercase tracking-widest text-xs">
-                    <Plus className="mr-2 h-5 w-5" /> Registrar Gasto
-                </Button>
+                {children || (
+                    <Button variant="default" className="rounded-[1.5rem] h-14 px-8 shadow-2xl shadow-primary/40 hover:shadow-primary/60 transition-all hover:scale-105 active:scale-95 bg-primary text-white font-black uppercase tracking-widest text-xs">
+                        <Plus className="mr-2 h-5 w-5" /> Registrar Gasto
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[480px] rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden bg-background">
                 <div className="p-1 w-full bg-gradient-to-r from-primary via-purple-400 to-primary" />

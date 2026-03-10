@@ -20,9 +20,10 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface SetIncomeDialogProps {
     isGuest?: boolean;
+    children?: React.ReactNode;
 }
 
-export function SetIncomeDialog({ isGuest }: SetIncomeDialogProps) {
+export function SetIncomeDialog({ isGuest, children }: SetIncomeDialogProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -53,9 +54,11 @@ export function SetIncomeDialog({ isGuest }: SetIncomeDialogProps) {
         return (
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl bg-muted/30 border border-muted hover:bg-muted/50 transition-all hover:scale-105 active:scale-95 group">
-                        <Settings className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </Button>
+                    {children || (
+                        <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl bg-muted/30 border border-muted hover:bg-muted/50 transition-all hover:scale-105 active:scale-95 group">
+                            <Settings className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </Button>
+                    )}
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[440px] rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden bg-background">
                     <div className="h-2 bg-primary w-full" />
@@ -88,9 +91,11 @@ export function SetIncomeDialog({ isGuest }: SetIncomeDialogProps) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl bg-muted/30 border border-muted hover:bg-muted/50 transition-all hover:scale-105 active:scale-95 group">
-                    <Settings className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
-                </Button>
+                {children || (
+                    <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl bg-muted/30 border border-muted hover:bg-muted/50 transition-all hover:scale-105 active:scale-95 group">
+                        <Settings className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[480px] rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden bg-background">
                 <div className="p-1 w-full bg-gradient-to-r from-emerald-500 via-primary to-emerald-500" />

@@ -105,6 +105,40 @@ export async function upsertIncome(valor: number, month: number, year: number) {
     revalidatePath("/");
 }
 
+export async function getHistoricalData() {
+    const userId = await getUserId();
+    if (!userId) return [];
+
+    const date = new Date();
+    const result = [];
+
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(date.getFullYear(), date.getMonth() - i, 1);
+        const month = d.getMonth() + 1;
+        const year = d.getFullYear();
+
+        const currentIncome = await db.query.incomes.findFirst({
+            where: and(
+                eq(incomes.userId, userId),
+                eq(incomes.mes, month),
+                eq(incomes.ano, year)
+            ),
+        });
+
+        const monthTransactions = await db.query.transactions.findMany({
+            where: sql`userid = ${userId} AND EXTRACT(MONTH FROM created_at) = ${month} AND EXTRACT(YEAR FROM created_at) = ${year}`
+        });
+
+        result.push({
+            month: d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase(),
+            income: currentIncome?.valor || 0,
+            spent: monthTransactions.reduce((sum, t) => sum + t.valor, 0),
+        });
+    }
+
+    return result;
+}
+
 export async function initializeDefaultCategories() {
     const userId = await getUserId();
     if (!userId) throw new Error("Unauthorized");
@@ -118,6 +152,83 @@ export async function initializeDefaultCategories() {
 
     await db.insert(categories).values(
         defaults.map(d => ({ ...d, userId: userId }))
+    );
+    revalidatePath("/");
+}
+
+export async function getTransactions() {
+    const userId = await getUserId();
+    if (!userId) return [];
+
+    return await db.query.transactions.findMany({
+        where: eq(transactions.userId, userId),
+        orderBy: (transactions, { desc }) => [desc(transactions.createdAt)],
+        with: {
+            category: true
+        }
+    });
+}
+
+export async function getIncomes() {
+    const userId = await getUserId();
+    if (!userId) return [];
+
+    return await db.query.incomes.findMany({
+        where: eq(incomes.userId, userId),
+        orderBy: (incomes, { desc }) => [desc(incomes.ano), desc(incomes.mes)],
+    });
+}
+
+export async function deleteTransaction(id: string) {
+    const userId = await getUserId();
+    if (!userId) throw new Error("Unauthorized");
+
+    await db.delete(transactions).where(
+        and(
+            eq(transactions.id, id),
+            eq(transactions.userId, userId)
+        )
+    );
+    revalidatePath("/");
+}
+
+export async function updateCategoryPercent(id: string, percentual: number) {
+    const userId = await getUserId();
+    if (!userId) throw new Error("Unauthorized");
+
+    await db.update(categories)
+        .set({ percentual })
+        .where(
+            and(
+                eq(categories.id, id),
+                eq(categories.userId, userId)
+            )
+        );
+    revalidatePath("/");
+}
+
+export async function addCategory(nome: string, percentual: number) {
+    const userId = await getUserId();
+    if (!userId) throw new Error("Unauthorized");
+
+    await db.insert(categories).values({
+        userId,
+        nome,
+        percentual,
+    });
+    revalidatePath("/");
+}
+
+export async function deleteCategory(id: string) {
+    const userId = await getUserId();
+    if (!userId) throw new Error("Unauthorized");
+
+    // We might want to check if there are transactions first, but for simplicity:
+    await db.delete(categories).where(
+        and(
+            eq(categories.id, id),
+            eq(categories.userId, userId)
+        )
     );
     revalidatePath("/");
 }

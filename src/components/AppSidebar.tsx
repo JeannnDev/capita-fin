@@ -57,8 +57,6 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent className="px-3 pt-4">
-                <SidebarSearch />
-
                 <SidebarGroup>
                     <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 px-3">Principal</SidebarGroupLabel>
                     <SidebarGroupContent>
