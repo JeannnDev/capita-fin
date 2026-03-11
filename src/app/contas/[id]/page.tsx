@@ -44,7 +44,7 @@ const accountTypeLabels: Record<string, string> = {
 export default function AccountDetailPage() {
   const { id } = useParams() as { id: string }
   const router = useRouter()
-  const { accounts, transactions } = useFinance()
+  const { accounts, transactions, getStartingBalance } = useFinance()
   
   const [searchTerm, setSearchTerm] = useState("")
   const [dateFilter, setDateFilter] = useState<{ start?: Date; end?: Date }>({
@@ -74,6 +74,11 @@ export default function AccountDetailPage() {
   }, [accountTransactions, searchTerm, dateFilter])
 
   const stats = useMemo(() => {
+    const month = dateFilter.start ? dateFilter.start.getMonth() : new Date().getMonth()
+    const year = dateFilter.start ? dateFilter.start.getFullYear() : new Date().getFullYear()
+
+    const startingBalance = getStartingBalance(month, year, id)
+    
     const income = filteredTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0)
@@ -82,8 +87,14 @@ export default function AccountDetailPage() {
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0)
       
-    return { income, expense, balance: income - expense }
-  }, [filteredTransactions])
+    return { 
+      income, 
+      expense, 
+      periodResult: income - expense,
+      startingBalance,
+      endingBalance: startingBalance + (income - expense)
+    }
+  }, [filteredTransactions, dateFilter.start, id, getStartingBalance])
 
   if (!account) {
     return (
@@ -151,18 +162,19 @@ export default function AccountDetailPage() {
           <Card className="bg-card shadow-sm border-border/50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground font-medium">Resultado do período</p>
+                <p className="text-sm text-muted-foreground font-medium">Saldo projetado</p>
                 <div className={cn(
                   "h-8 w-8 rounded-full flex items-center justify-center",
-                  stats.balance >= 0 ? "bg-blue-500/20" : "bg-orange-500/20"
+                  stats.endingBalance >= 0 ? "bg-blue-500/20" : "bg-orange-500/20"
                 )}>
-                  {stats.balance >= 0 ? <ArrowUpRight className="h-4 w-4 text-blue-500" /> : <ArrowDownLeft className="h-4 w-4 text-orange-500" />}
+                  {stats.endingBalance >= 0 ? <ArrowUpRight className="h-4 w-4 text-blue-500" /> : <ArrowDownLeft className="h-4 w-4 text-orange-500" />}
                 </div>
               </div>
               <p className={cn(
                 "text-2xl font-bold mt-1",
-                stats.balance >= 0 ? "text-blue-500" : "text-orange-500"
-              )}>{formatCurrency(stats.balance)}</p>
+                stats.endingBalance >= 0 ? "text-blue-500" : "text-orange-500"
+              )}>{formatCurrency(stats.endingBalance)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Saldo inicial: {formatCurrency(stats.startingBalance)}</p>
             </CardContent>
           </Card>
         </div>

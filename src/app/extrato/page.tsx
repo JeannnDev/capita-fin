@@ -61,43 +61,41 @@ export default function ExtratoPage() {
     setCurrentMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`)
   }
 
-  const dailySummaries = useMemo<DaySummary[]>(() => {
+  const monthData = useMemo(() => {
     const [year, month] = currentMonth.split("-").map(Number)
-    const daysInMonth = new Date(year, month, 0).getDate()
+    return { year, month: month - 1 }
+  }, [currentMonth])
+
+  const { getStartingBalance } = useFinance()
+
+  const dailySummaries = useMemo<DaySummary[]>(() => {
+    const { year, month } = monthData
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
 
     const filteredTransactions = transactions.filter((t) => {
       const transDate = new Date(t.date)
-      const matchesMonth = transDate.getFullYear() === year && transDate.getMonth() === month - 1
+      const matchesMonth = transDate.getFullYear() === year && transDate.getMonth() === month
       const matchesAccount = selectedAccount === "all" || t.accountId === selectedAccount
       return matchesMonth && matchesAccount
     })
 
-    let runningBalance = selectedAccount === "all"
-      ? accounts.reduce((sum, a) => sum + a.balance, 0)
-      : accounts.find((a) => a.id === selectedAccount)?.balance || 0
-
-    const currentMonthTransactions = transactions.filter((t) => {
-      const d = new Date(t.date)
-      return d.getFullYear() === year && d.getMonth() === month - 1 &&
-        (selectedAccount === "all" || t.accountId === selectedAccount)
-    })
-
-    currentMonthTransactions.forEach((t) => {
-      if (t.type === "income") runningBalance -= t.amount
-      else runningBalance += t.amount
-    })
+    let currentRunningBalance = getStartingBalance(month, year, selectedAccount === "all" ? undefined : selectedAccount)
 
     const summaries: DaySummary[] = []
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-      const dayTransactions = filteredTransactions.filter((t) => t.date === dateStr)
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+      const dayTransactions = filteredTransactions.filter((t) => {
+        const d = new Date(t.date)
+        return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year
+      })
 
-      const openingBalance = runningBalance
+      const openingBalance = currentRunningBalance
       const income = dayTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0)
       const expenses = dayTransactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0)
       const closingBalance = openingBalance + income - expenses
-      runningBalance = closingBalance
+      
+      currentRunningBalance = closingBalance
 
       if (dayTransactions.length > 0) {
         summaries.push({
@@ -114,7 +112,7 @@ export default function ExtratoPage() {
     }
 
     return summaries.reverse()
-  }, [currentMonth, selectedAccount, transactions, accounts])
+  }, [monthData, selectedAccount, transactions, getStartingBalance])
 
   const monthSummary = useMemo(() => {
     const totalIncome = dailySummaries.reduce((sum, d) => sum + d.income, 0)

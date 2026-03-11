@@ -57,6 +57,7 @@ export default function LembretesPage() {
     dueDate: undefined as Date | undefined,
     frequency: "monthly" as Reminder["frequency"],
     category: "",
+    accountId: "",
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -68,6 +69,7 @@ export default function LembretesPage() {
         dueDate: formData.dueDate ? formData.dueDate.toISOString() : new Date().toISOString(),
         frequency: formData.frequency,
         category: formData.category,
+        accountId: formData.accountId || undefined,
       })
     } else {
       addReminder({
@@ -77,6 +79,7 @@ export default function LembretesPage() {
         dueDate: formData.dueDate ? formData.dueDate.toISOString() : new Date().toISOString(),
         frequency: formData.frequency,
         category: formData.category,
+        accountId: formData.accountId || undefined,
         isPaid: false,
       })
     }
@@ -84,7 +87,7 @@ export default function LembretesPage() {
   }
 
   const resetForm = () => {
-    setFormData({ title: "", amount: "", dueDate: undefined, frequency: "monthly", category: "" })
+    setFormData({ title: "", amount: "", dueDate: undefined, frequency: "monthly", category: "", accountId: "" })
     setEditingReminder(null)
     setIsDialogOpen(false)
   }
@@ -96,7 +99,8 @@ export default function LembretesPage() {
       amount: reminder.amount.toString(), 
       dueDate: new Date(reminder.dueDate), 
       frequency: reminder.frequency, 
-      category: reminder.category 
+      category: reminder.category,
+      accountId: reminder.accountId || ""
     })
     setIsDialogOpen(true)
   }
@@ -252,6 +256,19 @@ export default function LembretesPage() {
                   <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
                     <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                     <SelectContent>{expenseCategories.map((cat) => (<SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Conta de pagamento</label>
+                  <Select value={formData.accountId} onValueChange={(value) => setFormData({ ...formData, accountId: value })}>
+                    <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
+                    <SelectContent>
+                      {useFinance().accounts.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.name} ({formatCurrency(acc.balance)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </div>
                 <Button type="submit" className="w-full">{editingReminder ? "Salvar alterações" : "Criar lembrete"}</Button>
