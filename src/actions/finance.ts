@@ -2,8 +2,8 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "@/db";
-import { incomes, categories, transactions } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { categories, transactions } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -21,11 +21,11 @@ export async function getFinancialSummary(month: number, year: number) {
         return { income: 0, summary: [], totalSpent: 0 };
     }
 
-    const currentIncomes = await db.query.incomes.findMany({
+    const monthTransactions = await db.query.transactions.findMany({
         where: and(
-            eq(incomes.userId, userId),
-            eq(incomes.mes, month),
-            eq(incomes.ano, year)
+            eq(transactions.userId, userId),
+            eq(transactions.mes, month),
+            eq(transactions.ano, year)
         ),
     });
 
@@ -33,37 +33,33 @@ export async function getFinancialSummary(month: number, year: number) {
         where: eq(categories.userId, userId),
     });
 
-    const monthTransactions = await db.query.transactions.findMany({
-        where: and(
-            eq(transactions.userId, userId),
-            sql`EXTRACT(MONTH FROM ${transactions.createdAt}) = ${month}`,
-            sql`EXTRACT(YEAR FROM ${transactions.createdAt}) = ${year}`
-        )
-    });
-
+    const currentIncomes = monthTransactions.filter(t => t.type === 'income');
     const incomeValue = currentIncomes.reduce((sum, i) => sum + i.valor, 0);
+    const expenseTransactions = monthTransactions.filter(t => t.type === 'expense');
 
-    const summary = userCategories.map((cat) => {
-        const categoryGasto = monthTransactions
-            .filter((t) => t.categoryId === cat.id)
-            .reduce((sum, t) => sum + t.valor, 0);
+    const summary = userCategories
+        .filter(cat => cat.type === 'expense')
+        .map((cat) => {
+            const categoryGasto = expenseTransactions
+                .filter((t) => t.categoryId === cat.id)
+                .reduce((sum, t) => sum + t.valor, 0);
 
-        const limit = (incomeValue * cat.percentual) / 100;
+            const limit = (incomeValue * cat.percentual) / 100;
 
-        return {
-            id: cat.id,
-            nome: cat.nome,
-            percentual: cat.percentual,
-            limite: limit,
-            gasto: categoryGasto,
-        };
-    });
+            return {
+                id: cat.id,
+                nome: cat.nome,
+                percentual: cat.percentual,
+                limite: limit,
+                gasto: categoryGasto,
+            };
+        });
 
     return {
         income: incomeValue,
         summary,
-        totalSpent: monthTransactions.reduce((sum, t) => sum + t.valor, 0),
-        incomes: currentIncomes
+        totalSpent: expenseTransactions.reduce((sum, t) => sum + t.valor, 0),
+        incomes: currentIncomes.map(i => ({ ...i, tipo: i.descricao || "Salário" }))
     };
 }
 
@@ -71,11 +67,15 @@ export async function addTransaction(categoryId: string, valor: number, descrica
     const userId = await getUserId();
     if (!userId) throw new Error("Unauthorized");
 
+    const now = new Date();
     await db.insert(transactions).values({
         userId: userId,
         categoryId,
         valor,
         descricao,
+        mes: now.getMonth() + 1,
+        ano: now.getFullYear(),
+        type: 'expense'
     });
     revalidatePath("/", "layout");
 }
@@ -84,26 +84,28 @@ export async function upsertIncome(valor: number, month: number, year: number, t
     const userId = await getUserId();
     if (!userId) throw new Error("Unauthorized");
 
-    const existing = await db.query.incomes.findFirst({
+    const existing = await db.query.transactions.findFirst({
         where: and(
-            eq(incomes.userId, userId),
-            eq(incomes.mes, month),
-            eq(incomes.ano, year),
-            eq(incomes.tipo, tipo)
+            eq(transactions.userId, userId),
+            eq(transactions.mes, month),
+            eq(transactions.ano, year),
+            eq(transactions.type, "income"),
+            eq(transactions.descricao, tipo)
         ),
     });
 
     if (existing) {
-        await db.update(incomes)
+        await db.update(transactions)
             .set({ valor })
-            .where(eq(incomes.id, existing.id));
+            .where(eq(transactions.id, existing.id));
     } else {
-        await db.insert(incomes).values({
+        await db.insert(transactions).values({
             userId: userId,
             valor,
             mes: month,
             ano: year,
-            tipo
+            descricao: tipo,
+            type: "income"
         });
     }
     revalidatePath("/", "layout");
@@ -121,26 +123,21 @@ export async function getHistoricalData() {
         const month = d.getMonth() + 1;
         const year = d.getFullYear();
 
-        const monthIncomes = await db.query.incomes.findMany({
-            where: and(
-                eq(incomes.userId, userId),
-                eq(incomes.mes, month),
-                eq(incomes.ano, year)
-            ),
-        });
-
         const monthTransactions = await db.query.transactions.findMany({
             where: and(
                 eq(transactions.userId, userId),
-                sql`EXTRACT(MONTH FROM ${transactions.createdAt}) = ${month}`,
-                sql`EXTRACT(YEAR FROM ${transactions.createdAt}) = ${year}`
+                eq(transactions.mes, month),
+                eq(transactions.ano, year)
             )
         });
+
+        const monthIncomes = monthTransactions.filter(t => t.type === 'income');
+        const monthExpenses = monthTransactions.filter(t => t.type === 'expense');
 
         result.push({
             month: d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase(),
             income: monthIncomes.reduce((sum, i) => sum + i.valor, 0),
-            spent: monthTransactions.reduce((sum, t) => sum + t.valor, 0),
+            spent: monthExpenses.reduce((sum, t) => sum + t.valor, 0),
         });
     }
 
@@ -170,7 +167,7 @@ export async function getTransactions() {
 
     return await db.query.transactions.findMany({
         where: eq(transactions.userId, userId),
-        orderBy: (transactions, { desc }) => [desc(transactions.createdAt)],
+        orderBy: (t, { desc }) => [desc(t.createdAt)],
         with: {
             category: true
         }
@@ -181,10 +178,15 @@ export async function getIncomes() {
     const userId = await getUserId();
     if (!userId) return [];
 
-    return await db.query.incomes.findMany({
-        where: eq(incomes.userId, userId),
-        orderBy: (incomes, { desc }) => [desc(incomes.ano), desc(incomes.mes)],
+    const data = await db.query.transactions.findMany({
+        where: and(
+            eq(transactions.userId, userId),
+            eq(transactions.type, "income")
+        ),
+        orderBy: (t, { desc }) => [desc(t.ano), desc(t.mes)],
     });
+
+    return data.map(i => ({ ...i, tipo: i.descricao || "Salário" }));
 }
 
 export async function deleteTransaction(id: string) {
@@ -249,13 +251,28 @@ export async function getAIInsights() {
     if (!apiKey) return "Configure a GEMINI_API_KEY no seu arquivo .env para ativar a IA.";
 
     try {
+        interface SummaryItem {
+            nome: string;
+            percentual: number;
+            gasto: number;
+            limite: number;
+        }
+
+        interface TransactionWithCategory {
+            descricao: string | null;
+            valor: number;
+            category: {
+                nome: string;
+            } | null;
+        }
+
         const summary = await getFinancialSummary(new Date().getMonth() + 1, new Date().getFullYear());
         const recentTransactions = await db.query.transactions.findMany({
             where: eq(transactions.userId, userId),
             limit: 5,
-            orderBy: (transactions, { desc }) => [desc(transactions.createdAt)],
+            orderBy: (t, { desc }) => [desc(t.createdAt)],
             with: { category: true }
-        });
+        }) as TransactionWithCategory[];
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
@@ -268,10 +285,10 @@ export async function getAIInsights() {
             - Renda Mensal: R$ ${summary.income}
             - Gasto Total no Mês: R$ ${summary.totalSpent}
             - Categorias (Nome, Porcentagem Ideal, Gasto Atual, Limite Calculado): 
-              ${summary.summary.map((s: any) => `${s.nome}: ${s.percentual}%, Gasto: R$ ${s.gasto}, Limite: R$ ${s.limite}`).join('\n')}
+              ${summary.summary.map((s: SummaryItem) => `${s.nome}: ${s.percentual}%, Gasto: R$ ${s.gasto}, Limite: R$ ${s.limite}`).join('\n')}
             
             TRANSAÇÕES RECENTES:
-            ${recentTransactions.map((t: any) => `- ${t.descricao}: R$ ${t.valor} (${t.category?.nome})`).join('\n')}
+            ${recentTransactions.map((t: TransactionWithCategory) => `- ${t.descricao}: R$ ${t.valor} (${t.category?.nome})`).join('\n')}
 
             REGRAS:
             1. Seja curto (máximo 2 frases por dica).
