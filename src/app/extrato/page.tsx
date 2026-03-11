@@ -3,8 +3,8 @@
 import { useState, useMemo } from "react"
 import { AppShell } from "@/components/AppShell"
 import { useFinance } from "@/lib/finance-context"
-import { formatCurrency, formatDate } from "@/lib/format"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatCurrency } from "@/lib/format"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -14,14 +14,18 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  Wallet,
+  Calendar,
+  ArrowRight,
+  ArrowUpRight,
+  ArrowDownRight,
+  ArrowRightLeft,
   ChevronLeft,
   ChevronRight,
   TrendingUp,
   TrendingDown,
-  ArrowRightLeft,
-  Calendar,
-  Wallet,
 } from "lucide-react"
+import { PremiumBalanceCard } from "@/components/ui/premium-balance-card"
 import { cn } from "@/lib/utils"
 
 interface DaySummary {
@@ -61,43 +65,41 @@ export default function ExtratoPage() {
     setCurrentMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`)
   }
 
-  const dailySummaries = useMemo<DaySummary[]>(() => {
+  const monthData = useMemo(() => {
     const [year, month] = currentMonth.split("-").map(Number)
-    const daysInMonth = new Date(year, month, 0).getDate()
+    return { year, month: month - 1 }
+  }, [currentMonth])
+
+  const { getStartingBalance } = useFinance()
+
+  const dailySummaries = useMemo<DaySummary[]>(() => {
+    const { year, month } = monthData
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
 
     const filteredTransactions = transactions.filter((t) => {
       const transDate = new Date(t.date)
-      const matchesMonth = transDate.getFullYear() === year && transDate.getMonth() === month - 1
+      const matchesMonth = transDate.getFullYear() === year && transDate.getMonth() === month
       const matchesAccount = selectedAccount === "all" || t.accountId === selectedAccount
       return matchesMonth && matchesAccount
     })
 
-    let runningBalance = selectedAccount === "all"
-      ? accounts.reduce((sum, a) => sum + a.balance, 0)
-      : accounts.find((a) => a.id === selectedAccount)?.balance || 0
-
-    const currentMonthTransactions = transactions.filter((t) => {
-      const d = new Date(t.date)
-      return d.getFullYear() === year && d.getMonth() === month - 1 &&
-        (selectedAccount === "all" || t.accountId === selectedAccount)
-    })
-
-    currentMonthTransactions.forEach((t) => {
-      if (t.type === "income") runningBalance -= t.amount
-      else runningBalance += t.amount
-    })
+    let currentRunningBalance = getStartingBalance(month, year, selectedAccount === "all" ? undefined : selectedAccount)
 
     const summaries: DaySummary[] = []
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-      const dayTransactions = filteredTransactions.filter((t) => t.date === dateStr)
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+      const dayTransactions = filteredTransactions.filter((t) => {
+        const d = new Date(t.date)
+        return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year
+      })
 
-      const openingBalance = runningBalance
+      const openingBalance = currentRunningBalance
       const income = dayTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0)
       const expenses = dayTransactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0)
       const closingBalance = openingBalance + income - expenses
-      runningBalance = closingBalance
+      
+      currentRunningBalance = closingBalance
 
       if (dayTransactions.length > 0) {
         summaries.push({
@@ -114,7 +116,7 @@ export default function ExtratoPage() {
     }
 
     return summaries.reverse()
-  }, [currentMonth, selectedAccount, transactions, accounts])
+  }, [monthData, selectedAccount, transactions, getStartingBalance])
 
   const monthSummary = useMemo(() => {
     const totalIncome = dailySummaries.reduce((sum, d) => sum + d.income, 0)
@@ -124,157 +126,155 @@ export default function ExtratoPage() {
 
   return (
     <AppShell title="Extrato">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Extrato</h1>
-            <p className="text-sm text-muted-foreground">Acompanhe seu saldo dia a dia</p>
-          </div>
-          <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Selecione a conta" />
+      <div className="max-w-4xl mx-auto w-full px-6 py-6 space-y-12">
+
+        {/* Global Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-card p-4 rounded-[2.5rem] border border-border shadow-sm">
+           {/* Month Navigation */}
+           <div className="flex items-center gap-1 bg-muted/40 p-1.5 rounded-[1.5rem] border border-border shadow-inner">
+              <Button variant="ghost" size="icon" onClick={() => navigateMonth("prev")} className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary transition-all">
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex items-center gap-4 px-6 min-w-[180px] justify-center text-foreground/80">
+                <Calendar className="h-4 w-4 text-primary/60" />
+                <span className="text-sm font-black capitalize tracking-tight">{monthName}</span>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => navigateMonth("next")} className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary transition-all">
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+           </div>
+
+           {/* Account Selector */}
+           <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+            <SelectTrigger className="w-full sm:w-[280px] rounded-[1.5rem] bg-muted/40 border-border h-14 px-6 font-bold shadow-sm focus:ring-primary/20 text-foreground/80">
+              <div className="flex items-center gap-3">
+                <Wallet className="h-4 w-4 text-primary" />
+                <SelectValue placeholder="Todas as contas" />
+              </div>
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as contas</SelectItem>
+            <SelectContent className="rounded-2xl border-border bg-card backdrop-blur-2xl shadow-2xl p-2">
+              <SelectItem value="all" className="rounded-xl p-3 font-bold">Todas as contas</SelectItem>
               {accounts.map((account) => (
-                <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>
+                <SelectItem key={account.id} value={account.id} className="rounded-xl p-3 font-bold">
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 w-3 rounded-full ring-2 ring-border shadow-sm" style={{ backgroundColor: account.color }} />
+                    {account.name}
+                  </div>
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Month Navigator */}
-        <div className="flex items-center justify-between rounded-xl bg-card p-4 border">
-          <Button variant="ghost" size="icon" onClick={() => navigateMonth("prev")}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-muted-foreground" />
-            <span className="text-lg font-medium capitalize text-foreground">{monthName}</span>
-          </div>
-          <Button variant="ghost" size="icon" onClick={() => navigateMonth("next")}>
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </div>
+        {/* Month Analytics */}
+        <PremiumBalanceCard
+          title="Consolidado do Mês"
+          amount={formatCurrency(monthSummary.balance)}
+          icon={ArrowRightLeft}
+          className="shadow-2xl"
+          secondaryMetrics={[
+            {
+              label: "Entradas",
+              value: formatCurrency(monthSummary.totalIncome),
+              icon: TrendingUp,
+              trend: "up"
+            },
+            {
+              label: "Saídas",
+              value: formatCurrency(monthSummary.totalExpenses),
+              icon: TrendingDown,
+              trend: "down"
+            }
+          ]}
+        />
 
-        {/* Month Summary */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/10">
-                  <TrendingUp className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Receitas do mês</p>
-                  <p className="text-xl font-semibold text-green-500">{formatCurrency(monthSummary.totalIncome)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
-                  <TrendingDown className="h-5 w-5 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Despesas do mês</p>
-                  <p className="text-xl font-semibold text-red-500">{formatCurrency(monthSummary.totalExpenses)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", monthSummary.balance >= 0 ? "bg-primary/10" : "bg-red-500/10")}>
-                  <ArrowRightLeft className={cn("h-5 w-5", monthSummary.balance >= 0 ? "text-primary" : "text-red-500")} />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Saldo do mês</p>
-                  <p className={cn("text-xl font-semibold", monthSummary.balance >= 0 ? "text-foreground" : "text-red-500")}>
-                    {monthSummary.balance >= 0 ? "+" : ""}{formatCurrency(monthSummary.balance)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Daily Summaries */}
-        <div className="space-y-4">
+        {/* Daily Summaries Timeline */}
+        <div className="space-y-12 relative before:absolute before:left-7 before:top-8 before:bottom-8 before:w-[2px] before:bg-gradient-to-b before:from-primary/30 before:via-primary/10 before:to-transparent">
           {dailySummaries.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Wallet className="h-12 w-12 text-muted-foreground/30" />
-                <p className="mt-4 text-sm text-muted-foreground">Nenhuma movimentação neste mês</p>
-              </CardContent>
+            <Card className="border-dashed bg-transparent shadow-none border-border p-20 text-center col-span-full">
+              <div className="flex flex-col items-center gap-6">
+                 <div className="p-8 rounded-full bg-muted/10 ring-1 ring-border shadow-inner">
+                   <Wallet className="h-12 w-12 text-muted-foreground/20" />
+                 </div>
+                 <div>
+                    <h3 className="text-xl font-black tracking-tight text-foreground">Sem rastro financeiro</h3>
+                    <p className="mt-1 text-sm font-bold text-muted-foreground/60 uppercase tracking-widest text-wrap">Nenhuma movimentação identificada neste período</p>
+                 </div>
+              </div>
             </Card>
           ) : (
             dailySummaries.map((day) => {
               const dayDate = new Date(day.date + "T12:00:00")
               const dayName = dayDate.toLocaleDateString("pt-BR", { weekday: "long" })
               const dayNumber = dayDate.getDate()
-              const dayDiff = day.closingBalance - day.openingBalance
-
+              const variation = day.closingBalance - day.openingBalance
+ 
               return (
-                <Card key={day.date} className="overflow-hidden">
-                  <CardHeader className="pb-3 border-b bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 flex-col items-center justify-center rounded-xl bg-primary/10">
-                          <span className="text-lg font-bold text-primary">{dayNumber}</span>
-                        </div>
-                        <div>
-                          <CardTitle className="text-base font-medium capitalize">{dayName}</CardTitle>
-                          <p className="text-xs text-muted-foreground">{formatDate(day.date)}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={cn("text-lg font-semibold", dayDiff >= 0 ? "text-green-500" : "text-red-500")}>
-                          {dayDiff >= 0 ? "+" : ""}{formatCurrency(dayDiff)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">variação do dia</p>
-                      </div>
+                <div key={day.date} className="relative pl-20 group">
+                  {/* Balanced Timeline Pin */}
+                  <div className="absolute left-0 top-0 h-14 w-14 flex items-center justify-center z-30">
+                     <div className="h-12 w-12 rounded-2xl bg-background border-2 border-primary/20 shadow-xl flex flex-col items-center justify-center ring-4 ring-background transform group-hover:scale-110 group-hover:border-primary transition-all duration-500">
+                        <span className="text-[9px] font-black uppercase text-primary leading-none mb-1">{dayName.substring(0, 3)}</span>
+                        <span className="text-xl font-black text-foreground leading-none tabular-nums tracking-tighter">{dayNumber}</span>
+                     </div>
+                  </div>
+
+                  {/* Proportional Daily Card */}
+                  <Card className="glass-card border-border overflow-hidden shadow-2xl hover:border-primary/20 transition-all duration-500 py-0 gap-0">
+                    {/* Header: Daily Flow Balance */}
+                    <div className="px-6 py-4 border-b border-border bg-muted/5 flex items-center justify-between">
+                       <div className="flex items-center gap-6">
+                          <div className="flex flex-col gap-1">
+                             <span className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Fluxo do Dia</span>
+                             <div className="flex items-center gap-4">
+                                <span className="text-sm font-black tabular-nums text-foreground/70">{formatCurrency(day.openingBalance)}</span>
+                                <ArrowRight className="h-3 w-3 text-primary/30" />
+                                <span className="text-sm font-black tabular-nums text-primary">{formatCurrency(day.closingBalance)}</span>
+                             </div>
+                          </div>
+                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="flex border-b bg-muted/10 px-4 py-3 text-sm">
-                      <div className="flex-1">
-                        <span className="text-muted-foreground">Saldo inicial:</span>
-                        <span className="ml-2 font-medium text-foreground">{formatCurrency(day.openingBalance)}</span>
-                      </div>
-                      <div className="flex-1 text-right">
-                        <span className="text-muted-foreground">Saldo final:</span>
-                        <span className="ml-2 font-medium text-foreground">{formatCurrency(day.closingBalance)}</span>
-                      </div>
-                    </div>
-                    <div className="divide-y">
+
+                    {/* Proportional Entries */}
+                    <div className="divide-y divide-border/30">
                       {day.transactions.map((transaction) => (
-                        <div key={transaction.id} className="flex items-center justify-between px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className={cn("flex h-8 w-8 items-center justify-center rounded-full", transaction.type === "income" ? "bg-green-500/10" : "bg-red-500/10")}>
+                        <div key={transaction.id} className="group/row flex items-center justify-between px-6 py-5 hover:bg-muted/5 transition-all">
+                          <div className="flex items-center gap-5">
+                            <div className={cn(
+                              "flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg ring-1 transition-all",
+                              transaction.type === "income" 
+                                ? "bg-green-500/10 text-green-500 ring-green-500/10" 
+                                : "bg-red-500/10 text-red-500 ring-red-500/10 shadow-red-500/5"
+                            )}>
                               {transaction.type === "income" ? (
-                                <TrendingUp className="h-4 w-4 text-green-500" />
+                                <ArrowUpRight className="h-6 w-6" />
                               ) : (
-                                <TrendingDown className="h-4 w-4 text-red-500" />
+                                <ArrowDownRight className="h-6 w-6" />
                               )}
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-foreground">{transaction.description}</p>
-                              <p className="text-xs text-muted-foreground">{transaction.category}</p>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-lg font-black text-foreground uppercase tracking-tight group-hover/row:text-primary transition-colors">{transaction.description}</span>
+                              <div className="flex items-center gap-2">
+                                 <div className="h-1 w-1 rounded-full" style={{ backgroundColor: transaction.type === 'income' ? '#22c55e' : '#ef4444' }} />
+                                 <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-[0.15em]">{transaction.category}</span>
+                              </div>
                             </div>
                           </div>
-                          <span className={cn("text-sm font-semibold", transaction.type === "income" ? "text-green-500" : "text-red-500")}>
-                            {transaction.type === "income" ? "+" : "-"}{formatCurrency(transaction.amount)}
-                          </span>
+                          
+                          <div className="flex flex-col items-end min-w-[140px]">
+                             <span className={cn(
+                                "text-2xl font-black tabular-nums tracking-tighter leading-none",
+                                transaction.type === "income" ? "text-emerald-600 dark:text-emerald-500" : "text-red-600 dark:text-red-500"
+                             )}>
+                                {transaction.type === "income" ? "+" : "-"}{formatCurrency(transaction.amount)}
+                             </span>
+                             <span className="text-[9px] font-black text-muted-foreground/20 uppercase tracking-widest mt-2">Movimentação Confirmada</span>
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
+                  </Card>
+                </div>
               )
             })
           )}

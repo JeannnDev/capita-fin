@@ -1,7 +1,7 @@
 "use client"
 
 import { AppShell } from "@/components/AppShell"
-import { DashboardBalanceCard } from "@/components/dashboard/DashboardBalanceCard"
+import { DashboardStatsCards } from "@/components/dashboard/DashboardStatsCards"
 import { DashboardAccountsOverview } from "@/components/dashboard/DashboardAccountsOverview"
 import { DashboardExpenseChart } from "@/components/dashboard/DashboardExpenseChart"
 import { DashboardMonthlyChart } from "@/components/dashboard/DashboardMonthlyChart"
@@ -11,27 +11,28 @@ import { DashboardRecentTransactions } from "@/components/dashboard/DashboardRec
 export default function DashboardPage() {
   return (
     <AppShell title="Dashboard">
-      <div className="space-y-6">
-        {/* Balance card - full width */}
-        <DashboardBalanceCard />
+      <div className="space-y-5 max-w-[1600px] mx-auto">
 
-        {/* Main grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Charts section */}
-          <div className="space-y-6 lg:col-span-2">
+        {/* Stat Cards Row */}
+        <DashboardStatsCards />
+
+        {/* Main Chart + Pie */}
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="lg:col-span-2 min-h-[400px]">
             <DashboardMonthlyChart />
-            <div className="grid gap-6 sm:grid-cols-2">
-              <DashboardExpenseChart />
-              <DashboardAccountsOverview />
-            </div>
           </div>
-
-          {/* Right column */}
-          <div className="space-y-6">
-            <DashboardUpcomingPayments />
-            <DashboardRecentTransactions />
+          <div className="lg:col-span-1">
+            <DashboardExpenseChart />
           </div>
         </div>
+
+        {/* Bottom: 3 equal columns */}
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <DashboardAccountsOverview />
+          <DashboardUpcomingPayments />
+          <DashboardRecentTransactions />
+        </div>
+
       </div>
     </AppShell>
   )

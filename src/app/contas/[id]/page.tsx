@@ -23,6 +23,7 @@ import { useFinance } from "@/lib/finance-context"
 import { formatCurrency, getRelativeDate } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { DatePicker } from "@/components/ui/date-picker"
+import { PremiumBalanceCard } from "@/components/ui/premium-balance-card"
 import { format, startOfMonth, endOfMonth } from "date-fns"
 
 const accountIcons: Record<string, typeof Wallet> = {
@@ -44,7 +45,7 @@ const accountTypeLabels: Record<string, string> = {
 export default function AccountDetailPage() {
   const { id } = useParams() as { id: string }
   const router = useRouter()
-  const { accounts, transactions } = useFinance()
+  const { accounts, transactions, getStartingBalance } = useFinance()
   
   const [searchTerm, setSearchTerm] = useState("")
   const [dateFilter, setDateFilter] = useState<{ start?: Date; end?: Date }>({
@@ -74,6 +75,11 @@ export default function AccountDetailPage() {
   }, [accountTransactions, searchTerm, dateFilter])
 
   const stats = useMemo(() => {
+    const month = dateFilter.start ? dateFilter.start.getMonth() : new Date().getMonth()
+    const year = dateFilter.start ? dateFilter.start.getFullYear() : new Date().getFullYear()
+
+    const startingBalance = getStartingBalance(month, year, id)
+    
     const income = filteredTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0)
@@ -82,8 +88,14 @@ export default function AccountDetailPage() {
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0)
       
-    return { income, expense, balance: income - expense }
-  }, [filteredTransactions])
+    return { 
+      income, 
+      expense, 
+      periodResult: income - expense,
+      startingBalance,
+      endingBalance: startingBalance + (income - expense)
+    }
+  }, [filteredTransactions, dateFilter.start, id, getStartingBalance])
 
   if (!account) {
     return (
@@ -100,155 +112,171 @@ export default function AccountDetailPage() {
 
   return (
     <AppShell title={`Detalhes: ${account.name}`}>
-      <div className="space-y-6">
-        {/* Back and Breadcrumb */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/contas")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">{account.name}</h2>
-            <p className="text-sm text-muted-foreground">{account.institution} · {accountTypeLabels[account.type]}</p>
+      <div className="space-y-8 max-w-[1200px] mx-auto">
+        {/* Header & Main Balance */}
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center gap-4 px-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => router.push("/contas")}
+              className="h-12 w-12 rounded-2xl bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 transition-all shadow-sm"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Visualizando Detalhes da Conta</span>
+              <p className="text-xs font-bold text-muted-foreground/60 tracking-tight">{account.institution || 'Instituição não informada'} • {accountTypeLabels[account.type]}</p>
+            </div>
           </div>
+
+          <PremiumBalanceCard
+            title="Saldo Disponível"
+            amount={formatCurrency(account.balance)}
+            icon={Icon}
+            color={account.color}
+          />
         </div>
 
-        {/* Account Info Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-0 bg-primary text-primary-foreground shadow-lg overflow-hidden relative">
-            <div className="absolute right-0 top-0 p-4 opacity-10">
-              <Icon className="h-16 w-16" />
-            </div>
-            <CardContent className="p-6">
-              <p className="text-sm text-primary-foreground/80 font-medium">Saldo Atual</p>
-              <p className="text-3xl font-bold mt-1">{formatCurrency(account.balance)}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card shadow-sm border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground font-medium">Entradas no período</p>
-                <div className="h-8 w-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <TrendingUp className="h-4 w-4 text-green-500" />
+        {/* Stats Grid */}
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <Card className="glass-card border-white/10 shadow-xl shadow-emerald-500/5 group hover:bg-emerald-500/[0.02] transition-all">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Entradas</span>
+                <div className="h-10 w-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center group-hover:rotate-12 transition-transform">
+                  <TrendingUp className="h-5 w-5 text-emerald-500" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-green-500 mt-1">{formatCurrency(stats.income)}</p>
+              <p className="text-3xl font-black tracking-tight text-emerald-500">{formatCurrency(stats.income)}</p>
+              <p className="text-[10px] font-bold text-muted-foreground/60 mt-2 uppercase tracking-tight">No período selecionado</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-card shadow-sm border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground font-medium">Saídas no período</p>
-                <div className="h-8 w-8 rounded-full bg-red-500/20 flex items-center justify-center">
-                  <TrendingDown className="h-4 w-4 text-red-500" />
+          <Card className="glass-card border-white/10 shadow-xl shadow-rose-500/5 group hover:bg-rose-500/[0.02] transition-all">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Saídas</span>
+                <div className="h-10 w-10 rounded-2xl bg-rose-500/10 flex items-center justify-center group-hover:-rotate-12 transition-transform">
+                  <TrendingDown className="h-5 w-5 text-rose-500" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-red-500 mt-1">{formatCurrency(stats.expense)}</p>
+              <p className="text-3xl font-black tracking-tight text-rose-500">{formatCurrency(stats.expense)}</p>
+              <p className="text-[10px] font-bold text-muted-foreground/60 mt-2 uppercase tracking-tight">No período selecionado</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-card shadow-sm border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground font-medium">Resultado do período</p>
+          <Card className="glass-card border-white/10 shadow-xl shadow-primary/5 group hover:bg-primary/[0.02] transition-all sm:col-span-2 lg:col-span-1">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Resultado</span>
                 <div className={cn(
-                  "h-8 w-8 rounded-full flex items-center justify-center",
-                  stats.balance >= 0 ? "bg-blue-500/20" : "bg-orange-500/20"
+                  "h-10 w-10 rounded-2xl flex items-center justify-center transition-transform",
+                  stats.periodResult >= 0 ? "bg-primary/10 group-hover:rotate-12" : "bg-orange-500/10 group-hover:-rotate-12"
                 )}>
-                  {stats.balance >= 0 ? <ArrowUpRight className="h-4 w-4 text-blue-500" /> : <ArrowDownLeft className="h-4 w-4 text-orange-500" />}
+                  {stats.periodResult >= 0 ? <ArrowUpRight className="h-5 w-5 text-primary" /> : <ArrowDownLeft className="h-5 w-5 text-orange-500" />}
                 </div>
               </div>
               <p className={cn(
-                "text-2xl font-bold mt-1",
-                stats.balance >= 0 ? "text-blue-500" : "text-orange-500"
-              )}>{formatCurrency(stats.balance)}</p>
+                "text-3xl font-black tracking-tight",
+                stats.periodResult >= 0 ? "text-primary" : "text-orange-500"
+              )}>{formatCurrency(stats.periodResult)}</p>
+              <p className="text-[10px] font-bold text-muted-foreground/60 mt-2 uppercase tracking-tight">Saldo Final: {formatCurrency(stats.endingBalance)}</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Filters and Search */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-end bg-card p-4 rounded-xl border border-border/50 shadow-sm">
-          <div className="flex-1 space-y-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Buscar por descrição ou categoria</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Ex: Supermercado, Salário..." 
-                className="pl-10 bg-muted/30 border-none h-11"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+        <div className="glass-card p-6 md:p-8 rounded-[2rem] border-white/5 shadow-2xl space-y-6">
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex-1 space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Buscar Movimentação</label>
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input 
+                  placeholder="Descrição ou categoria..." 
+                  className="pl-12 bg-muted/20 border-white/10 h-14 rounded-2xl text-base font-bold focus:ring-primary/20 transition-all"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2 md:w-[400px]">
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Início</label>
-              <DatePicker 
-                date={dateFilter.start} 
-                setDate={(date) => setDateFilter(prev => ({ ...prev, start: date }))}
-                className="bg-muted/30 border-none"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fim</label>
-              <DatePicker 
-                date={dateFilter.end} 
-                setDate={(date) => setDateFilter(prev => ({ ...prev, end: date }))}
-                className="bg-muted/30 border-none"
-              />
+            
+            <div className="grid grid-cols-2 gap-4 md:w-[460px]">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Data Início</label>
+                <DatePicker 
+                  date={dateFilter.start} 
+                  setDate={(date) => setDateFilter(prev => ({ ...prev, start: date }))}
+                  className="bg-muted/20 border-white/10 h-14 rounded-2xl font-bold w-full"
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Data Fim</label>
+                <DatePicker 
+                  date={dateFilter.end} 
+                  setDate={(date) => setDateFilter(prev => ({ ...prev, end: date }))}
+                  className="bg-muted/20 border-white/10 h-14 rounded-2xl font-bold w-full"
+                />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Transactions List */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">Movimentações ({filteredTransactions.length})</h3>
-            <Badge variant="outline" className="font-normal text-muted-foreground">
-              {dateFilter.start && format(dateFilter.start, "dd/MM/yyyy")} - {dateFilter.end && format(dateFilter.end, "dd/MM/yyyy")}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between px-4">
+            <h3 className="text-lg font-black tracking-tight uppercase">Histórico ({filteredTransactions.length})</h3>
+            <Badge variant="secondary" className="rounded-full px-4 py-1 text-[9px] font-black uppercase tracking-widest bg-muted/20 text-muted-foreground border-none">
+              {dateFilter.start && format(dateFilter.start, "dd/MM") || '--'} - {dateFilter.end && format(dateFilter.end, "dd/MM") || '--'}
             </Badge>
           </div>
 
-          <div className="grid gap-3">
+          <div className="grid gap-4">
             {filteredTransactions.length === 0 ? (
-              <div className="text-center py-12 bg-muted/10 rounded-xl border border-dashed border-border/50">
-                <p className="text-muted-foreground">Nenhuma movimentação encontrada para os filtros aplicados.</p>
-              </div>
+              <Card className="border-2 border-dashed border-white/10 rounded-[2.5rem] bg-transparent flex flex-col items-center justify-center p-20">
+                <div className="w-20 h-20 rounded-3xl bg-muted/20 flex items-center justify-center text-muted-foreground mb-6">
+                  <Search size={40} />
+                </div>
+                <h3 className="text-lg font-black tracking-tight text-muted-foreground">Nada por aqui</h3>
+                <p className="text-xs text-muted-foreground/60 mt-2">Nenhuma movimentação para estes filtros.</p>
+              </Card>
             ) : (
               filteredTransactions.map((transaction) => (
-                <Card key={transaction.id} className="hover:bg-muted/50 transition-colors border-border/50 group">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                <Card key={transaction.id} className="glass-card border-white/5 shadow-sm transition-all group hover:bg-white/50 dark:hover:bg-white/5 overflow-hidden">
+                  <CardContent className="p-4 px-6 md:p-6 flex items-center justify-between">
+                    <div className="flex items-center gap-6 group transition-transform hover:translate-x-1">
                       <div className={cn(
-                        "h-10 w-10 rounded-full flex items-center justify-center",
-                        transaction.type === 'income' ? "bg-green-500/10" : "bg-red-500/10"
+                        "flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm transform group-hover:rotate-3 transition-transform",
+                        transaction.type === 'income' ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
                       )}>
                         {transaction.type === 'income' ? 
-                          <ArrowUpRight className="h-5 w-5 text-green-500" /> : 
-                          <ArrowDownLeft className="h-5 w-5 text-red-500" />
+                          <ArrowUpRight className="h-7 w-7" /> : 
+                          <ArrowDownLeft className="h-7 w-7" />
                         }
                       </div>
                       <div>
-                        <p className="font-medium text-foreground group-hover:text-primary transition-colors">
-                          {transaction.description}
-                        </p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span className="capitalize">{transaction.category}</span>
-                          <span>•</span>
-                          <span>{getRelativeDate(transaction.date)}</span>
+                        <p className="text-lg font-black tracking-tight text-foreground">{transaction.description}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-primary/70">{transaction.category}</span>
+                          <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+                          <span className="text-[10px] font-bold text-muted-foreground">{getRelativeDate(transaction.date)}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end gap-1.5">
                       <p className={cn(
-                        "text-lg font-bold",
-                        transaction.type === 'income' ? "text-green-500" : "text-foreground"
+                        "text-xl font-black tabular-nums tracking-tight",
+                        transaction.type === 'income' ? "text-emerald-500" : "text-foreground"
                       )}>
                         {transaction.type === 'income' ? "+" : "-"} {formatCurrency(transaction.amount)}
                       </p>
-                      <Badge variant={transaction.isPaid ? "secondary" : "outline"} className="text-[10px] h-4 mt-1">
+                      <Badge variant={transaction.isPaid ? "secondary" : "outline"} className={cn(
+                        "rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest border-none",
+                        transaction.isPaid 
+                          ? "bg-emerald-500/10 text-emerald-500" 
+                          : "bg-amber-500/10 text-amber-500"
+                      )}>
                         {transaction.isPaid ? "Confirmado" : "Pendente"}
                       </Badge>
                     </div>

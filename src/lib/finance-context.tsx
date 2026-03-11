@@ -27,9 +27,11 @@ interface FinanceContextType {
   updateGoal: (id: string, goal: Partial<Goal>) => void
   deleteGoal: (id: string) => void
   addContribution: (goalId: string, contribution: GoalContribution) => void
-  getTotalBalance: () => number
-  getTotalIncome: (month?: number) => number
-  getTotalExpenses: (month?: number) => number
+  getTotalBalance: (accountId?: string) => number
+  getTotalIncome: (month?: number, year?: number, accountId?: string) => number
+  getTotalExpenses: (month?: number, year?: number, accountId?: string) => number
+  getStartingBalance: (month: number, year: number, accountId?: string) => number
+  getMonthBalance: (month: number, year: number, accountId?: string) => number
   isSidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
 }
@@ -165,11 +167,67 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const updateTransaction = (id: string, transaction: Partial<Transaction>) => {
-    setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...transaction } : t)))
+  const updateTransaction = (id: string, updates: Partial<Transaction>) => {
+    const old = transactions.find((t) => t.id === id)
+    if (!old) return
+
+    setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)))
+
+    // Undo old transaction effects
+    const oldAccount = accounts.find((a) => a.id === old.accountId)
+    if (oldAccount) {
+      const reversedBalance = old.type === "income" 
+        ? oldAccount.balance - old.amount 
+        : oldAccount.balance + old.amount
+      updateAccount(oldAccount.id, { balance: reversedBalance })
+    }
+
+    if (old.type === "expense") {
+      const oldBudget = budgets.find((b) => b.category === old.category)
+      if (oldBudget) {
+        updateBudget(oldBudget.id, { spent: oldBudget.spent - old.amount })
+      }
+    }
+
+    // Apply new transaction effects
+    const newTransaction = { ...old, ...updates }
+    const newAccount = accounts.find((a) => a.id === newTransaction.accountId)
+    if (newAccount) {
+      const newBalance = newTransaction.type === "income"
+        ? newAccount.balance + newTransaction.amount
+        : newAccount.balance - newTransaction.amount
+      updateAccount(newAccount.id, { balance: newBalance })
+    }
+
+    if (newTransaction.type === "expense") {
+      const newBudget = budgets.find((b) => b.category === newTransaction.category)
+      if (newBudget) {
+        updateBudget(newBudget.id, { spent: newBudget.spent + newTransaction.amount })
+      }
+    }
   }
 
   const deleteTransaction = (id: string) => {
+    const transaction = transactions.find((t) => t.id === id)
+    if (!transaction) return
+
+    // Revert balance
+    const account = accounts.find((a) => a.id === transaction.accountId)
+    if (account) {
+      const newBalance = transaction.type === "income"
+        ? account.balance - transaction.amount
+        : account.balance + transaction.amount
+      updateAccount(account.id, { balance: newBalance })
+    }
+
+    // Revert budget spent
+    if (transaction.type === "expense") {
+      const budget = budgets.find((b) => b.category === transaction.category)
+      if (budget) {
+        updateBudget(budget.id, { spent: budget.spent - transaction.amount })
+      }
+    }
+
     setTransactions((prev) => prev.filter((t) => t.id !== id))
   }
 
@@ -186,7 +244,24 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   }
 
   const markReminderPaid = (id: string) => {
+    const reminder = reminders.find((r) => r.id === id)
+    if (!reminder || reminder.isPaid) return
+
     setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, isPaid: true } : r)))
+
+    // Automatically create a transaction if an account is linked
+    if (reminder.accountId) {
+      addTransaction({
+        id: crypto.randomUUID(),
+        description: `Pagamento: ${reminder.title}`,
+        amount: reminder.amount,
+        type: "expense",
+        category: reminder.category,
+        accountId: reminder.accountId,
+        date: new Date().toISOString().split("T")[0],
+        isPaid: true,
+      })
+    }
   }
 
   const updateBudget = (id: string, budget: Partial<Budget>) => {
@@ -235,22 +310,56 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     )
   }
 
-  const getTotalBalance = () => {
+  const getStartingBalance = (month: number, year: number, accountId?: string) => {
+    const targetDate = new Date(year, month, 1)
+    
+    return transactions
+      .filter((t) => {
+        const transDate = new Date(t.date)
+        const matchesAccount = !accountId || t.accountId === accountId
+        return transDate < targetDate && matchesAccount
+      })
+      .reduce((sum, t) => {
+        return t.type === "income" ? sum + t.amount : sum - t.amount
+      }, 0)
+  }
+
+  const getTotalBalance = (accountId?: string) => {
+    if (accountId) {
+      return accounts.find(a => a.id === accountId)?.balance || 0
+    }
     return accounts.reduce((sum, account) => sum + account.balance, 0)
   }
 
-  const getTotalIncome = (month?: number) => {
-    const currentMonth = month ?? new Date().getMonth()
+  const getTotalIncome = (month?: number, year?: number, accountId?: string) => {
+    const targetMonth = month ?? new Date().getMonth()
+    const targetYear = year ?? new Date().getFullYear()
     return transactions
-      .filter((t) => t.type === "income" && new Date(t.date).getMonth() === currentMonth)
+      .filter((t) => {
+        const d = new Date(t.date)
+        const matchesAccount = !accountId || t.accountId === accountId
+        return t.type === "income" && d.getMonth() === targetMonth && d.getFullYear() === targetYear && matchesAccount
+      })
       .reduce((sum, t) => sum + t.amount, 0)
   }
 
-  const getTotalExpenses = (month?: number) => {
-    const currentMonth = month ?? new Date().getMonth()
+  const getTotalExpenses = (month?: number, year?: number, accountId?: string) => {
+    const targetMonth = month ?? new Date().getMonth()
+    const targetYear = year ?? new Date().getFullYear()
     return transactions
-      .filter((t) => t.type === "expense" && new Date(t.date).getMonth() === currentMonth)
+      .filter((t) => {
+        const d = new Date(t.date)
+        const matchesAccount = !accountId || t.accountId === accountId
+        return t.type === "expense" && d.getMonth() === targetMonth && d.getFullYear() === targetYear && matchesAccount
+      })
       .reduce((sum, t) => sum + t.amount, 0)
+  }
+
+  const getMonthBalance = (month: number, year: number, accountId?: string) => {
+    const starting = getStartingBalance(month, year, accountId)
+    const income = getTotalIncome(month, year, accountId)
+    const expense = getTotalExpenses(month, year, accountId)
+    return starting + income - expense
   }
 
   return (
@@ -282,6 +391,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         getTotalBalance,
         getTotalIncome,
         getTotalExpenses,
+        getStartingBalance,
+        getMonthBalance,
         isSidebarOpen,
         setSidebarOpen,
       }}
