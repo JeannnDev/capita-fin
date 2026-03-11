@@ -151,7 +151,7 @@ export function DashboardMonthlyChart() {
               dataKey="month"
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground) / 0.6)", fontWeight: 700, textTransform: "uppercase" }}
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground) / 0.6)", fontWeight: 700 }}
               dy={10}
             />
             <YAxis

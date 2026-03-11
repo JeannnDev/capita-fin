@@ -73,6 +73,7 @@ export const categories = pgTable("categories", {
         .notNull()
         .references(() => users.id, { onDelete: 'cascade' }),
     nome: text("nome").notNull(),
+    percentual: real("percentual").default(0).notNull(),
     icon: text("icon").default("tag").notNull(),
     color: text("color").default("#8b5cf6").notNull(),
     type: text("type").default("expense").notNull(), // 'income' | 'expense'
