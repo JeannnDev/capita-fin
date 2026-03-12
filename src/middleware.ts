@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function middleware(request: NextRequest) {
-    // Check for better-auth session cookie
-    // It can be "better-auth.session-token" or "__Secure-better-auth.session-token"
-    const sessionCookie = request.cookies.get("better-auth.session-token") || 
-                          request.cookies.get("__Secure-better-auth.session-token");
-
+    const allCookies = request.cookies.getAll();
     const { pathname } = request.nextUrl;
+
+    // Procura por qualquer cookie que contenha "session_token" ou "session-token"
+    const sessionCookie = allCookies.find(c => 
+        c.name.includes("session-token") || 
+        c.name.includes("session_token")
+    );
 
     // Public routes that don't require authentication
     const isPublicRoute = 
