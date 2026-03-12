@@ -38,8 +38,8 @@ export function AppHeader({ onMenuClick, title }: AppHeaderProps) {
           <span className="sr-only">Abrir menu</span>
         </button>
 
-        <div>
-          <h1 className="text-xl font-black tracking-tight text-foreground leading-none">{title}</h1>
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-xl font-black tracking-tight text-foreground leading-none truncate max-w-[120px] xs:max-w-[200px] sm:max-w-none">{title}</h1>
           <p className="text-[10px] text-muted-foreground uppercase tracking-[0.16em] font-bold hidden sm:block mt-0.5">
             Gerenciamento Financeiro
           </p>
@@ -118,7 +118,7 @@ export function AppHeader({ onMenuClick, title }: AppHeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button
               id="header-add-button"
-              className="gap-2 rounded-xl px-4 h-9 font-bold premium-gradient text-white border-none shadow-lg shadow-violet-900/30 hover:opacity-90 active:scale-95 transition-all"
+              className="gap-2 rounded-xl px-3 sm:px-4 h-9 font-bold premium-gradient text-white border-none shadow-lg shadow-violet-900/30 hover:opacity-90 active:scale-95 transition-all focus:ring-0 focus:outline-none"
             >
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline text-sm">Criar Novo</span>

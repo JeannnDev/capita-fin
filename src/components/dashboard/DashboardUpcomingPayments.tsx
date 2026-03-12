@@ -64,7 +64,7 @@ export function DashboardUpcomingPayments() {
                 key={reminder.id}
                 href={`/lembretes/${reminder.id}`}
                 className={cn(
-                  "flex items-center justify-between rounded-xl px-3 py-2.5 transition-all group",
+                  "flex items-center justify-between rounded-xl px-2.5 sm:px-3 py-2.5 transition-all group",
                   idx !== upcomingReminders.length - 1 && "border-b border-border/40",
                   isOverdue
                     ? "bg-red-500/5 hover:bg-red-500/10"
@@ -72,21 +72,21 @@ export function DashboardUpcomingPayments() {
                 )}
               >
                 {/* Icon + info */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                   <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl transition-transform group-hover:scale-105"
+                    className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl transition-transform group-hover:scale-105"
                     style={{
                       backgroundColor: isOverdue ? "rgba(239,68,68,0.12)" : `${color}18`,
                       border: `1px solid ${isOverdue ? "rgba(239,68,68,0.2)" : `${color}25`}`
                     }}
                   >
                     <Calendar
-                      className="h-4 w-4"
+                      className="h-3.5 w-3.5 sm:h-4 sm:w-4"
                       style={{ color: isOverdue ? "#f87171" : color }}
                     />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-foreground truncate max-w-[130px] leading-none">{reminder.title}</p>
+                    <p className="text-sm font-bold text-foreground truncate max-w-[100px] xs:max-w-[130px] leading-none">{reminder.title}</p>
                     <p className={cn(
                       "text-[9px] font-black uppercase tracking-tight mt-1",
                       isOverdue ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
@@ -97,7 +97,7 @@ export function DashboardUpcomingPayments() {
                 </div>
 
                 {/* Value + action */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                   <span className={cn(
                     "text-sm font-black tabular-nums",
                     isOverdue ? "text-red-600 dark:text-red-400" : "text-foreground"
@@ -105,9 +105,12 @@ export function DashboardUpcomingPayments() {
                     {formatCurrency(reminder.amount)}
                   </span>
                   <button
-                    onClick={() => markReminderPaid(reminder.id)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      markReminderPaid(reminder.id)
+                    }}
                     title="Marcar como pago"
-                    className="h-8 w-8 rounded-xl flex items-center justify-center bg-muted/20 text-muted-foreground hover:bg-emerald-500/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all active:scale-95 opacity-0 group-hover:opacity-100"
+                    className="h-8 w-8 rounded-xl flex items-center justify-center bg-muted/20 text-muted-foreground hover:bg-emerald-500/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all active:scale-95 opacity-0 lg:group-hover:opacity-100"
                   >
                     <Check className="h-3.5 w-3.5" />
                   </button>

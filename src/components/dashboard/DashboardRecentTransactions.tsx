@@ -57,30 +57,30 @@ export function DashboardRecentTransactions() {
                 )}
               >
                 {/* Icon + info */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                   <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-black/5 transition-transform group-hover:scale-105"
+                    className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl border border-black/5 transition-transform group-hover:scale-105"
                     style={{ backgroundColor: `${color}18` }}
                   >
                     {isIncome ? (
-                      <ArrowDownLeft className="h-4 w-4" style={{ color }} />
+                      <ArrowDownLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" style={{ color }} />
                     ) : (
-                      <ArrowUpRight className="h-4 w-4" style={{ color }} />
+                      <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" style={{ color }} />
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-foreground truncate max-w-[140px] leading-none">
+                    <p className="text-sm font-bold text-foreground truncate max-w-[100px] xs:max-w-[140px] leading-none">
                       {transaction.description}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span
-                        className="text-[9px] font-black uppercase tracking-tight"
+                        className="text-[9px] font-black uppercase tracking-tight truncate max-w-[60px] xs:max-w-none"
                         style={{ color }}
                       >
                         {transaction.category}
                       </span>
-                      <span className="h-1 w-1 rounded-full bg-border" />
-                      <span className="text-[9px] text-muted-foreground font-bold">
+                      <span className="h-1 w-1 rounded-full bg-border shrink-0" />
+                      <span className="text-[9px] text-muted-foreground font-bold shrink-0">
                         {formatDate(transaction.date)}
                       </span>
                     </div>
@@ -88,10 +88,8 @@ export function DashboardRecentTransactions() {
                 </div>
 
                 {/* Value + badge */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className={cn(
-                    "text-right",
-                  )}>
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  <div className="text-right">
                     <span
                       className={cn(
                         "text-sm font-black tabular-nums leading-none",
@@ -103,7 +101,7 @@ export function DashboardRecentTransactions() {
                   </div>
                   <div
                     className={cn(
-                      "text-[9px] font-black px-1.5 py-0.5 rounded-full hidden group-hover:block transition-all",
+                      "text-[9px] font-black px-1.5 py-0.5 rounded-full hidden lg:group-hover:block transition-all",
                       isIncome
                         ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
                         : "bg-red-500/15 text-red-600 dark:text-red-400"
