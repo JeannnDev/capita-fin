@@ -1,7 +1,9 @@
 "use client"
 
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import type { Account, Transaction, Reminder, Budget, Category, Goal, GoalContribution } from "./types"
+import { authClient } from "./auth-client"
+import { useRouter } from "next/navigation"
 
 interface FinanceContextType {
   accounts: Account[]
@@ -23,6 +25,7 @@ interface FinanceContextType {
   updateBudget: (id: string, budget: Partial<Budget>) => void
   addBudget: (budget: Budget) => void
   deleteBudget: (id: string) => void
+  addCategory: (category: { nome: string; icon: string; color: string; type: string }) => Promise<Category | undefined>
   addGoal: (goal: Goal) => void
   updateGoal: (id: string, goal: Partial<Goal>) => void
   deleteGoal: (id: string) => void
@@ -32,203 +35,179 @@ interface FinanceContextType {
   getTotalExpenses: (month?: number, year?: number, accountId?: string) => number
   getStartingBalance: (month: number, year: number, accountId?: string) => number
   getMonthBalance: (month: number, year: number, accountId?: string) => number
+  isLoading: boolean
   isSidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
 }
 
-const defaultAccounts: Account[] = [
-  { id: "1", name: "Carteira", balance: 450.0, type: "wallet", color: "#8b5cf6", institution: "Dinheiro" },
-  { id: "2", name: "Nubank", balance: 3240.0, type: "checking", color: "#8b5cf6", institution: "Nubank" },
-  { id: "3", name: "Vale Alimentação", balance: 1500.0, type: "food", color: "#f59e0b", institution: "Alelo" },
-  { id: "4", name: "Santander", balance: 2850.0, type: "checking", color: "#ef4444", institution: "Santander" },
-]
-
-const defaultCategories: Category[] = [
-  { id: "1", name: "Alimentação", icon: "utensils", color: "#f59e0b", type: "expense" },
-  { id: "2", name: "Transporte", icon: "car", color: "#3b82f6", type: "expense" },
-  { id: "3", name: "Moradia", icon: "home", color: "#10b981", type: "expense" },
-  { id: "4", name: "Saúde", icon: "heart", color: "#ef4444", type: "expense" },
-  { id: "5", name: "Lazer", icon: "gamepad", color: "#8b5cf6", type: "expense" },
-  { id: "6", name: "Educação", icon: "book", color: "#06b6d4", type: "expense" },
-  { id: "7", name: "Salário", icon: "briefcase", color: "#22c55e", type: "income" },
-  { id: "8", name: "Freelance", icon: "laptop", color: "#6366f1", type: "income" },
-]
-
-const defaultTransactions: Transaction[] = [
-  { id: "1", description: "Supermercado", amount: 320.5, type: "expense", category: "Alimentação", accountId: "2", date: "2026-03-08", isPaid: true },
-  { id: "2", description: "Uber", amount: 45.0, type: "expense", category: "Transporte", accountId: "4", date: "2026-03-07", isPaid: true },
-  { id: "3", description: "Salário", amount: 5500.0, type: "income", category: "Salário", accountId: "2", date: "2026-03-05", isPaid: true },
-  { id: "4", description: "Restaurante", amount: 89.0, type: "expense", category: "Alimentação", accountId: "3", date: "2026-03-06", isPaid: true },
-  { id: "5", description: "Cinema", amount: 65.0, type: "expense", category: "Lazer", accountId: "1", date: "2026-03-04", isPaid: true },
-  { id: "6", description: "Farmácia", amount: 120.0, type: "expense", category: "Saúde", accountId: "4", date: "2026-03-03", isPaid: true },
-  { id: "7", description: "Curso online", amount: 199.0, type: "expense", category: "Educação", accountId: "2", date: "2026-03-02", isPaid: true },
-  { id: "8", description: "Projeto freelance", amount: 1200.0, type: "income", category: "Freelance", accountId: "4", date: "2026-03-01", isPaid: true },
-]
-
-const defaultReminders: Reminder[] = [
-  { id: "1", title: "Aluguel", amount: 1800.0, dueDate: "2026-03-15", frequency: "monthly", category: "Moradia", isPaid: false },
-  { id: "2", title: "Internet", amount: 120.0, dueDate: "2026-03-20", frequency: "monthly", category: "Moradia", isPaid: false },
-  { id: "3", title: "Academia", amount: 89.0, dueDate: "2026-03-10", frequency: "monthly", category: "Saúde", isPaid: true },
-  { id: "4", title: "Seguro do carro", amount: 2400.0, dueDate: "2026-06-01", frequency: "yearly", category: "Transporte", isPaid: false },
-  { id: "5", title: "Faxina", amount: 200.0, dueDate: "2026-03-14", frequency: "weekly", category: "Moradia", isPaid: false },
-]
-
-const defaultBudgets: Budget[] = [
-  { id: "1", category: "Alimentação", limit: 1500, spent: 409.5, color: "#f59e0b", limitType: "value", limitValue: 1500 },
-  { id: "2", category: "Transporte", limit: 500, spent: 45, color: "#3b82f6", limitType: "value", limitValue: 500 },
-  { id: "3", category: "Lazer", limit: 400, spent: 65, color: "#8b5cf6", limitType: "value", limitValue: 400 },
-  { id: "4", category: "Saúde", limit: 300, spent: 120, color: "#ef4444", limitType: "value", limitValue: 300 },
-  { id: "5", category: "Educação", limit: 500, spent: 199, color: "#06b6d4", limitType: "value", limitValue: 500 },
-]
-
-const defaultGoals: Goal[] = [
-  {
-    id: "1",
-    name: "Viagem para Europa",
-    targetAmount: 15000,
-    currentAmount: 4500,
-    deadline: "2026-12-01",
-    icon: "plane",
-    color: "#8b5cf6",
-    contributions: [
-      { id: "1", amount: 2000, date: "2026-01-15", accountId: "2" },
-      { id: "2", amount: 1500, date: "2026-02-15", accountId: "2" },
-      { id: "3", amount: 1000, date: "2026-03-05", accountId: "4" },
-    ],
-  },
-  {
-    id: "2",
-    name: "Reserva de emergência",
-    targetAmount: 20000,
-    currentAmount: 12000,
-    icon: "shield",
-    color: "#10b981",
-    contributions: [
-      { id: "1", amount: 5000, date: "2025-10-01", accountId: "2" },
-      { id: "2", amount: 4000, date: "2025-12-01", accountId: "2" },
-      { id: "3", amount: 3000, date: "2026-02-01", accountId: "4" },
-    ],
-  },
-  {
-    id: "3",
-    name: "Novo notebook",
-    targetAmount: 5000,
-    currentAmount: 2200,
-    deadline: "2026-06-01",
-    icon: "laptop",
-    color: "#6366f1",
-    contributions: [
-      { id: "1", amount: 1200, date: "2026-02-10", accountId: "4" },
-      { id: "2", amount: 1000, date: "2026-03-01", accountId: "2" },
-    ],
-  },
-]
-
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined)
 
 export function FinanceProvider({ children }: { children: ReactNode }) {
-  const [accounts, setAccounts] = useState<Account[]>(defaultAccounts)
-  const [transactions, setTransactions] = useState<Transaction[]>(defaultTransactions)
-  const [reminders, setReminders] = useState<Reminder[]>(defaultReminders)
-  const [budgets, setBudgets] = useState<Budget[]>(defaultBudgets)
-  const [categories] = useState<Category[]>(defaultCategories)
-  const [goals, setGoals] = useState<Goal[]>(defaultGoals)
+  const router = useRouter()
+  const { data: session } = authClient.useSession()
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [reminders, setReminders] = useState<Reminder[]>([])
+  const [budgets, setBudgets] = useState<Budget[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [goals, setGoals] = useState<Goal[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isSidebarOpen, setSidebarOpen] = useState(false)
 
-  const addAccount = (account: Account) => {
-    setAccounts((prev) => [...prev, account])
+  useEffect(() => {
+    async function fetchData() {
+      if (!session) {
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const res = await fetch("/api/finance")
+        if (res.ok) {
+          const data = await res.json()
+          setAccounts(data.accounts || [])
+          setTransactions(data.transactions || [])
+          setReminders(data.reminders || [])
+          setBudgets(data.budgets || [])
+          setCategories(data.categories || [])
+          setGoals(data.goals || [])
+        }
+      } catch (error) {
+        console.error("Failed to fetch finance data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [session])
+
+  const addAccount = async (account: Account) => {
+    try {
+      const res = await fetch("/api/accounts", {
+        method: "POST",
+        body: JSON.stringify(account),
+      })
+      if (res.ok) {
+        const newAccount = await res.json()
+        setAccounts((prev) => [...prev, newAccount])
+        router.refresh()
+      }
+    } catch (error) {
+      console.error("Failed to add account:", error)
+    }
   }
 
-  const updateAccount = (id: string, account: Partial<Account>) => {
-    setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, ...account } : a)))
+  const updateAccount = async (id: string, updates: Partial<Account>) => {
+    try {
+      const res = await fetch("/api/accounts", {
+        method: "PATCH",
+        body: JSON.stringify({ id, ...updates }),
+      })
+      if (res.ok) {
+        setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, ...updates } : a)))
+      }
+    } catch (error) {
+      console.error("Failed to update account:", error)
+    }
   }
 
   const deleteAccount = (id: string) => {
     setAccounts((prev) => prev.filter((a) => a.id !== id))
   }
 
-  const addTransaction = (transaction: Transaction) => {
-    setTransactions((prev) => [...prev, transaction])
-
-    const account = accounts.find((a) => a.id === transaction.accountId)
-    if (account) {
-      const newBalance =
-        transaction.type === "income"
-          ? account.balance + transaction.amount
-          : account.balance - transaction.amount
-      updateAccount(account.id, { balance: newBalance })
-    }
-
-    if (transaction.type === "expense") {
-      const budget = budgets.find((b) => b.category === transaction.category)
-      if (budget) {
-        updateBudget(budget.id, { spent: budget.spent + transaction.amount })
+  const addTransaction = async (transaction: Transaction) => {
+    try {
+      const res = await fetch("/api/transactions", {
+        method: "POST",
+        body: JSON.stringify(transaction),
+      })
+      if (res.ok) {
+        const saved = await res.json()
+        setTransactions((prev) => [saved, ...prev])
+        
+        // Re-fetch to ensure everything is synced (balances, etc)
+        const financeRes = await fetch("/api/finance")
+        if (financeRes.ok) {
+          const data = await financeRes.json()
+          setAccounts(data.accounts)
+          setTransactions(data.transactions)
+        }
       }
+    } catch (error) {
+      console.error("Failed to add transaction:", error)
     }
   }
 
-  const updateTransaction = (id: string, updates: Partial<Transaction>) => {
+  const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
     const old = transactions.find((t) => t.id === id)
     if (!old) return
 
     setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)))
 
-    // Undo old transaction effects
-    const oldAccount = accounts.find((a) => a.id === old.accountId)
-    if (oldAccount) {
-      const reversedBalance = old.type === "income" 
-        ? oldAccount.balance - old.amount 
-        : oldAccount.balance + old.amount
-      updateAccount(oldAccount.id, { balance: reversedBalance })
-    }
+    try {
+      const res = await fetch("/api/transactions", {
+        method: "PATCH",
+        body: JSON.stringify({ id, ...updates }),
+      })
 
-    if (old.type === "expense") {
-      const oldBudget = budgets.find((b) => b.category === old.category)
-      if (oldBudget) {
-        updateBudget(oldBudget.id, { spent: oldBudget.spent - old.amount })
+      if (res.ok) {
+        // Re-fetch to ensure everything is synced (balances, budgets, etc)
+        const financeRes = await fetch("/api/finance")
+        if (financeRes.ok) {
+          const data = await financeRes.json()
+          setAccounts(data.accounts)
+          setTransactions(data.transactions)
+          setBudgets(data.budgets)
+        }
+        router.refresh()
+      } else {
+        // Rollback state on error
+        const financeRes = await fetch("/api/finance")
+        if (financeRes.ok) {
+          const data = await financeRes.json()
+          setAccounts(data.accounts)
+          setTransactions(data.transactions)
+        }
       }
-    }
-
-    // Apply new transaction effects
-    const newTransaction = { ...old, ...updates }
-    const newAccount = accounts.find((a) => a.id === newTransaction.accountId)
-    if (newAccount) {
-      const newBalance = newTransaction.type === "income"
-        ? newAccount.balance + newTransaction.amount
-        : newAccount.balance - newTransaction.amount
-      updateAccount(newAccount.id, { balance: newBalance })
-    }
-
-    if (newTransaction.type === "expense") {
-      const newBudget = budgets.find((b) => b.category === newTransaction.category)
-      if (newBudget) {
-        updateBudget(newBudget.id, { spent: newBudget.spent + newTransaction.amount })
-      }
+    } catch (error) {
+      console.error("Failed to update transaction:", error)
     }
   }
 
-  const deleteTransaction = (id: string) => {
+  const deleteTransaction = async (id: string) => {
     const transaction = transactions.find((t) => t.id === id)
     if (!transaction) return
 
-    // Revert balance
-    const account = accounts.find((a) => a.id === transaction.accountId)
-    if (account) {
-      const newBalance = transaction.type === "income"
-        ? account.balance - transaction.amount
-        : account.balance + transaction.amount
-      updateAccount(account.id, { balance: newBalance })
-    }
-
-    // Revert budget spent
-    if (transaction.type === "expense") {
-      const budget = budgets.find((b) => b.category === transaction.category)
-      if (budget) {
-        updateBudget(budget.id, { spent: budget.spent - transaction.amount })
-      }
-    }
-
     setTransactions((prev) => prev.filter((t) => t.id !== id))
+
+    try {
+      const res = await fetch(`/api/transactions?id=${id}`, {
+        method: "DELETE"
+      })
+
+      if (res.ok) {
+        // Re-fetch to ensure everything is synced
+        const financeRes = await fetch("/api/finance")
+        if (financeRes.ok) {
+          const data = await financeRes.json()
+          setAccounts(data.accounts)
+          setTransactions(data.transactions)
+          setBudgets(data.budgets)
+        }
+        router.refresh()
+      } else {
+        // Rollback
+        const financeRes = await fetch("/api/finance")
+        if (financeRes.ok) {
+          const data = await financeRes.json()
+          setAccounts(data.accounts)
+          setTransactions(data.transactions)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete transaction:", error)
+    }
   }
 
   const addReminder = (reminder: Reminder) => {
@@ -274,6 +253,38 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   const deleteBudget = (id: string) => {
     setBudgets((prev) => prev.filter((b) => b.id !== id))
+  }
+
+  const addCategory = async (cat: { nome: string; icon: string; color: string; type: string }) => {
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        body: JSON.stringify(cat),
+      })
+      if (res.ok) {
+        const newCat = await res.json()
+        setCategories((prev) => {
+          const exists = prev.find(c => c.id === newCat.id)
+          if (exists) return prev
+          return [...prev, {
+            id: newCat.id,
+            name: newCat.nome,
+            icon: newCat.icon,
+            color: newCat.color,
+            type: newCat.type
+          }]
+        })
+        return {
+          id: newCat.id,
+          name: newCat.nome,
+          icon: newCat.icon,
+          color: newCat.color,
+          type: newCat.type
+        } as Category
+      }
+    } catch (error) {
+      console.error("Failed to add category:", error)
+    }
   }
 
   const addGoal = (goal: Goal) => {
@@ -384,6 +395,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         updateBudget,
         addBudget,
         deleteBudget,
+        addCategory,
         addGoal,
         updateGoal,
         deleteGoal,
@@ -393,6 +405,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         getTotalExpenses,
         getStartingBalance,
         getMonthBalance,
+        isLoading,
         isSidebarOpen,
         setSidebarOpen,
       }}

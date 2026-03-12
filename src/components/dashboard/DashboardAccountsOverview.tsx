@@ -89,23 +89,23 @@ export function DashboardAccountsOverview() {
                 )}
               >
                 {/* Icon + info */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                   <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-black/5 transition-transform group-hover:scale-105"
+                    className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl border border-black/5 transition-transform group-hover:scale-105"
                     style={{ backgroundColor: `${account.color}18` }}
                   >
-                    <Icon className="h-4 w-4 transition-transform" style={{ color: account.color }} />
+                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform" style={{ color: account.color }} />
                   </div>
-                          <div className="min-w-0">
-                    <p className="text-sm font-bold text-foreground truncate max-w-[140px] leading-none">{account.name}</p>
-                    <p className="text-[9px] text-muted-foreground font-bold mt-1 uppercase tracking-wider">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground truncate max-w-[100px] xs:max-w-[140px] leading-none">{account.name}</p>
+                    <p className="text-[9px] text-muted-foreground font-bold mt-1 uppercase tracking-wider truncate">
                       {account.institution || "Outros"}
                     </p>
                   </div>
                 </div>
 
                 {/* Balance + arrow */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                   <span
                     className={cn(
                       "text-sm font-black tabular-nums",
@@ -114,7 +114,7 @@ export function DashboardAccountsOverview() {
                   >
                     {formatCurrency(account.balance)}
                   </span>
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/30 opacity-0 lg:group-hover:opacity-100 transition-opacity" />
                 </div>
               </Link>
             )

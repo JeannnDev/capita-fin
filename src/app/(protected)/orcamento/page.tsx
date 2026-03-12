@@ -44,7 +44,7 @@ import { cn } from "@/lib/utils"
 import type { Budget } from "@/lib/types"
 
 export default function OrcamentoPage() {
-  const { budgets, updateBudget, addBudget, deleteBudget, addTransaction, accounts, getTotalIncome, categories } = useFinance()
+  const { budgets, updateBudget, addBudget, deleteBudget, addTransaction, accounts, getTotalIncome, categories, addCategory } = useFinance()
   
   // Dialog states
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
@@ -81,13 +81,30 @@ export default function OrcamentoPage() {
   const totalRemaining = totalBudget - totalSpent
   const overallProgress = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0
 
-  const handleSaveBudget = () => {
+  const handleSaveBudget = async () => {
     const val = formData.limitValue
     const calculatedLimit = formData.limitType === 'value' ? val : (totalIncome * val) / 100
 
+    let finalCategory = formData.category
+    const existingCategory = categories.find(c => c.name.toLowerCase() === finalCategory.toLowerCase())
+
+    if (!existingCategory) {
+      const created = await addCategory({
+        nome: finalCategory,
+        icon: "tag",
+        color: formData.color,
+        type: "expense"
+      })
+      if (created) {
+        finalCategory = created.name
+      }
+    } else {
+      finalCategory = existingCategory.name
+    }
+
     if (editingBudget) {
       updateBudget(editingBudget.id, { 
-        category: formData.category,
+        category: finalCategory,
         limitType: formData.limitType,
         limitValue: val,
         limit: calculatedLimit,
@@ -97,7 +114,7 @@ export default function OrcamentoPage() {
     } else {
       addBudget({
         id: crypto.randomUUID(),
-        category: formData.category,
+        category: finalCategory,
         limitType: formData.limitType,
         limitValue: val,
         limit: calculatedLimit,
@@ -376,18 +393,38 @@ export default function OrcamentoPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 mt-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Categoria de Gasto</label>
-                <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
-                  <SelectTrigger className="rounded-2xl bg-muted/20 border-white/10 h-12 px-4 focus:ring-primary/20 font-bold">
-                    <SelectValue placeholder="Selecione categoria..." />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl border-white/10 bg-background/80 backdrop-blur-2xl p-2">
-                    {categories.filter(c => c.type === 'expense').map((cat) => (
-                      <SelectItem key={cat.id} value={cat.name} className="rounded-xl font-bold">{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-1">
+                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nome da Categoria (Orçamento)</label>
+                </div>
+                
+                <div className="space-y-3">
+                  <Input 
+                    placeholder="Ex: Viagens, Streamings, Pets..." 
+                    className="rounded-2xl bg-muted/20 border-white/10 h-14 px-6 text-lg font-black focus:ring-primary/20 transition-all"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  />
+
+                  {formData.category.length > 0 && categories.filter(c => c.type === 'expense' && c.name.toLowerCase().includes(formData.category.toLowerCase()) && c.name !== formData.category).length > 0 && (
+                    <div className="flex flex-wrap gap-2 px-1">
+                      {categories
+                        .filter(c => c.type === 'expense' && c.name.toLowerCase().includes(formData.category.toLowerCase()) && c.name !== formData.category)
+                        .slice(0, 3)
+                        .map(cat => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, category: cat.name, color: cat.color })}
+                            className="px-3 py-1.5 rounded-xl bg-muted/20 hover:bg-primary/10 border border-white/5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-all"
+                          >
+                            Sugestão: {cat.name}
+                          </button>
+                        ))
+                      }
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-3">

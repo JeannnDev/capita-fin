@@ -229,35 +229,35 @@ export default function ContasPage() {
               const Icon = accountIcons[account.type] || Wallet
               return (
                 <Card key={account.id} className="glass-card shadow-sm border-white/5 transition-all group hover:bg-white/50 dark:hover:bg-white/5 overflow-hidden">
-                  <CardContent className="flex items-center justify-between p-4 px-6 md:p-6">
+                  <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:px-6 md:p-6 gap-4 sm:gap-6">
                     <Link 
                       href={`/contas/${account.id}`}
-                      className="flex flex-1 items-center gap-6 group transform hover:translate-x-1 transition-transform"
+                      className="flex flex-1 items-center gap-4 sm:gap-6 group transform hover:translate-x-1 transition-transform min-w-0"
                     >
                       <div
-                        className="flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm transform group-hover:rotate-3 transition-transform"
+                        className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl shadow-sm shrink-0 transform group-hover:rotate-3 transition-transform"
                         style={{ backgroundColor: `${account.color}15`, border: `1px solid ${account.color}30` }}
                       >
-                        <Icon className="h-7 w-7" style={{ color: account.color }} />
+                        <Icon className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: account.color }} />
                       </div>
-                      <div>
-                        <p className="text-xl font-black tracking-tight text-foreground">{account.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">{account.institution || 'Outros'}</span>
-                          <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
-                          <Badge className="bg-primary/5 text-primary border-none font-bold text-[9px] px-2 py-0.5 uppercase tracking-widest">
+                      <div className="min-w-0 truncate">
+                        <p className="text-lg sm:text-xl font-black tracking-tight text-foreground truncate">{account.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5 overflow-hidden">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 truncate shrink-0">{account.institution || 'Outros'}</span>
+                          <span className="h-1 w-1 rounded-full bg-muted-foreground/30 shrink-0" />
+                          <Badge className="bg-primary/5 text-primary border-none font-bold text-[9px] px-2 py-0.5 uppercase tracking-widest truncate shrink-0">
                             {accountTypeLabels[account.type]}
                           </Badge>
                         </div>
                       </div>
                     </Link>
-                    <div className="flex items-center gap-8">
-                      <span className="text-2xl font-black tabular-nums tracking-tighter text-foreground">
+                    <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-8 border-t sm:border-t-0 border-white/5 pt-3 sm:pt-0">
+                      <span className="text-xl sm:text-2xl font-black tabular-nums tracking-tighter text-foreground">
                         {formatCurrency(account.balance)}
                       </span>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-muted/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-muted/20 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                             <MoreHorizontal className="h-5 w-5" />
                           </Button>
                         </DropdownMenuTrigger>

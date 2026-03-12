@@ -7,10 +7,9 @@ import { formatCurrency, formatDate } from "@/lib/format"
 import { PremiumBalanceCard } from "@/components/ui/premium-balance-card"
 import { cn } from "@/lib/utils"
 import type { Goal, GoalContribution } from "@/lib/types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -263,25 +262,25 @@ export default function MetasPage() {
                 )}
                 onClick={() => setExpandedGoal(isExpanded ? null : goal.id)}
               >
-                <div className="p-6 space-y-6">
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl shadow-inner transform group-hover:rotate-6 transition-transform" style={{ backgroundColor: `${goal.color}25`, border: `1px solid ${goal.color}50` }}>
-                        <IconComponent className="h-7 w-7" style={{ color: goal.color }} />
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl shadow-inner transform group-hover:rotate-6 transition-transform" style={{ backgroundColor: `${goal.color}25`, border: `1px solid ${goal.color}50` }}>
+                        <IconComponent className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: goal.color }} />
                       </div>
-                      <div>
-                        <h3 className="text-lg font-black tracking-tight text-foreground">{goal.name}</h3>
+                      <div className="min-w-0 truncate">
+                        <h3 className="text-base sm:text-lg font-black tracking-tight text-foreground truncate">{goal.name}</h3>
                         {goal.deadline && (
-                          <div className="mt-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            <Calendar className="h-3.5 w-3.5" />
-                            {daysRemaining !== null && daysRemaining > 0 ? `${daysRemaining} DIAS` : daysRemaining === 0 ? "HOJE" : "EXPIRADO"}
+                          <div className="mt-1 flex items-center gap-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap overflow-hidden">
+                            <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                            <span className="truncate">{daysRemaining !== null && daysRemaining > 0 ? `${daysRemaining} DIAS` : daysRemaining === 0 ? "HOJE" : "EXPIRADO"}</span>
                           </div>
                         )}
                       </div>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-muted/20 opacity-0 group-hover:opacity-100 transition-opacity font-black text-foreground">
+                        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-muted/20 opacity-0 group-hover:opacity-100 transition-opacity font-black text-foreground">
                           <MoreHorizontal className="h-5 w-5" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -296,18 +295,18 @@ export default function MetasPage() {
                     </DropdownMenu>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div className="space-y-2">
-                       <div className="flex items-end justify-between">
-                        <span className="text-2xl font-black tabular-nums tracking-tighter text-foreground">{formatCurrency(goal.currentAmount)}</span>
-                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">DE {formatCurrency(goal.targetAmount)}</span>
+                       <div className="flex items-end justify-between gap-1">
+                        <span className="text-xl sm:text-2xl font-black tabular-nums tracking-tighter text-foreground truncate">{formatCurrency(goal.currentAmount)}</span>
+                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground/60 whitespace-nowrap truncate">DE {formatCurrency(goal.targetAmount)}</span>
                       </div>
-                      <div className="relative h-3 overflow-hidden rounded-full bg-muted/30 p-0.5">
+                      <div className="relative h-2.5 sm:h-3 overflow-hidden rounded-full bg-muted/30 p-0.5">
                         <div className="h-full rounded-full transition-all duration-1000 shadow-sm shadow-black/20" style={{ width: `${progress}%`, backgroundColor: goal.color }} />
                       </div>
-                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.1em]">
-                        <span className="font-bold" style={{ color: goal.color }}>{progress.toFixed(0)}% CONCLUÍDO</span>
-                        <span className="text-muted-foreground">FALTA {formatCurrency(remaining)}</span>
+                      <div className="flex justify-between items-center text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] gap-1">
+                        <span className="font-bold truncate" style={{ color: goal.color }}>{progress.toFixed(0)}% CONCLUÍDO</span>
+                        <span className="text-muted-foreground truncate">FALTA {formatCurrency(remaining)}</span>
                       </div>
                     </div>
 
@@ -315,13 +314,13 @@ export default function MetasPage() {
                       className="cursor-pointer w-full h-11 rounded-xl font-bold bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/10 transition-all active:scale-[0.98]"
                       onClick={(e) => { e.stopPropagation(); setSelectedGoal(goal); setIsContributionOpen(true) }}
                     >
-                      <Plus className="mr-2 h-4 w-4" />Adicionar valor
+                      <Plus className="mr-2 h-4 w-4" />Aportar
                     </Button>
                   </div>
 
                   {isExpanded && goal.contributions.length > 0 && (
-                    <div className="space-y-4 pt-4 border-t border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Histórico de Aportes</p>
+                    <div className="space-y-3 sm:space-y-4 pt-4 border-t border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Histórico de Aportes</p>
                       <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                         {goal.contributions
                           .slice()
@@ -329,12 +328,12 @@ export default function MetasPage() {
                           .map((contribution) => {
                             const account = accounts.find((a) => a.id === contribution.accountId)
                             return (
-                              <div key={contribution.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/10 border border-white/5">
-                                <div className="flex flex-col">
-                                  <span className="text-[11px] font-black tracking-tight text-foreground/80">{formatDate(contribution.date)}</span>
-                                  {account && <span className="text-[9px] font-bold text-muted-foreground/60 uppercase">{account.name}</span>}
+                              <div key={contribution.id} className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-muted/10 border border-white/5 gap-2">
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-[10px] sm:text-xs font-black tracking-tight text-foreground/80">{formatDate(contribution.date)}</span>
+                                  {account && <span className="text-[8px] sm:text-[9px] font-bold text-muted-foreground/60 uppercase truncate">{account.name}</span>}
                                 </div>
-                                <span className="text-sm font-black text-green-500 tabular-nums">+{formatCurrency(contribution.amount)}</span>
+                                <span className="text-xs sm:text-sm font-black text-green-500 tabular-nums shrink-0">+{formatCurrency(contribution.amount)}</span>
                               </div>
                             )
                           })}

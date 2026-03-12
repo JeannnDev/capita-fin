@@ -1,7 +1,8 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   Wallet,
@@ -13,8 +14,13 @@ import {
   FileText,
   CreditCard,
   X,
+  LogOut,
+  Camera,
+  Loader2,
+  LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { authClient } from "@/lib/auth-client"
 
 const navigation = [
   { name: "Dashboard",   href: "/",           icon: LayoutDashboard,  id: "sidebar-nav-dashboard"  },
@@ -39,13 +45,12 @@ function NavItem({
   isActive,
   onClose,
 }: {
-  item: typeof navigation[0]
+  item: { name: string; href: string; icon: LucideIcon; id: string }
   isActive: boolean
   onClose: () => void
 }) {
   return (
     <Link
-      key={item.name}
       id={item.id}
       href={item.href}
       onClick={onClose}
@@ -84,6 +89,53 @@ function NavItem({
 
 export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+  const { data: session } = authClient.useSession()
+  const user = session?.user
+  const [isUploading, setIsUploading] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const handleSignOut = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/login")
+        },
+      },
+    })
+  }
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (res.ok) {
+        router.refresh()
+      } else {
+        const data = await res.json()
+        alert(data.error || "Erro no upload")
+      }
+    } catch (error) {
+      console.error(error)
+      alert("Erro ao enviar arquivo")
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   return (
     <>
@@ -165,13 +217,63 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
           </div>
         </nav>
 
-        {/* ── Footer / Settings ──────────────────── */}
-        <div className="px-3 pb-5 border-t border-sidebar-border pt-4">
-          <NavItem
-            item={{ name: "Configurações", href: "/configuracoes", icon: Settings, id: "sidebar-nav-settings" }}
-            isActive={pathname === "/configuracoes"}
-            onClose={onClose}
-          />
+        {/* ── Footer / User Profile ──────────────────── */}
+        <div className="px-3 pb-5 border-t border-sidebar-border pt-4 mt-auto">
+          <div className="space-y-4">
+             {/* Settings button */}
+             <NavItem
+                item={{ name: "Configurações", href: "/configuracoes", icon: Settings, id: "sidebar-nav-settings" }}
+                isActive={pathname === "/configuracoes"}
+                onClose={onClose}
+             />
+
+             {/* User Profile Card - Only render after mounting to avoid hydration mismatch */}
+             {mounted && user && (
+                <div className="relative group p-2 rounded-2xl bg-muted/20 border border-white/5 shadow-inner">
+                   <div className="flex items-center gap-3">
+                      {/* Avatar with Upload */}
+                      <label className="relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl overflow-hidden group/avatar">
+                         <input type="file" className="hidden" accept="image/*" onChange={handleUpload} disabled={isUploading} />
+                         
+                         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                            {isUploading ? (
+                               <Loader2 className="h-4 w-4 text-white animate-spin" />
+                            ) : (
+                               <Camera className="h-4 w-4 text-white" />
+                            )}
+                         </div>
+
+                         <div className="flex h-full w-full items-center justify-center rounded-xl premium-gradient text-white font-black text-sm shadow-md ring-2 ring-violet-500/20">
+                            {user.image ? (
+                               <img src={user.image} alt={user.name || "User"} className="h-full w-full object-cover rounded-xl" />
+                            ) : (
+                               <span>{user.name?.charAt(0).toUpperCase()}</span>
+                            )}
+                         </div>
+                      </label>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                         <p className="text-xs font-black text-sidebar-foreground truncate uppercase tracking-tight">
+                            {user.name}
+                         </p>
+                         <p className="text-[10px] text-muted-foreground/60 truncate font-medium">
+                            {user.email}
+                         </p>
+                      </div>
+
+                      {/* Logout */}
+                      <button
+                         onClick={handleSignOut}
+                         title="Sair"
+                         className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10 transition-all active:scale-90 shrink-0"
+                      >
+                         <LogOut className="h-4 w-4" />
+                      </button>
+                   </div>
+                </div>
+             )}
+          </div>
         </div>
       </aside>
     </>
