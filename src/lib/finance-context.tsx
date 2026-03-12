@@ -139,68 +139,75 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const updateTransaction = (id: string, updates: Partial<Transaction>) => {
+  const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
     const old = transactions.find((t) => t.id === id)
     if (!old) return
 
     setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)))
 
-    // Undo old transaction effects
-    const oldAccount = accounts.find((a) => a.id === old.accountId)
-    if (oldAccount) {
-      const reversedBalance = old.type === "income" 
-        ? oldAccount.balance - old.amount 
-        : oldAccount.balance + old.amount
-      updateAccount(oldAccount.id, { balance: reversedBalance })
-    }
+    try {
+      const res = await fetch("/api/transactions", {
+        method: "PATCH",
+        body: JSON.stringify({ id, ...updates }),
+      })
 
-    if (old.type === "expense") {
-      const oldBudget = budgets.find((b) => b.category === old.category)
-      if (oldBudget) {
-        updateBudget(oldBudget.id, { spent: oldBudget.spent - old.amount })
+      if (res.ok) {
+        // Re-fetch to ensure everything is synced (balances, budgets, etc)
+        const financeRes = await fetch("/api/finance")
+        if (financeRes.ok) {
+          const data = await financeRes.json()
+          setAccounts(data.accounts)
+          setTransactions(data.transactions)
+          setBudgets(data.budgets)
+        }
+        router.refresh()
+      } else {
+        // Rollback state on error
+        const financeRes = await fetch("/api/finance")
+        if (financeRes.ok) {
+          const data = await financeRes.json()
+          setAccounts(data.accounts)
+          setTransactions(data.transactions)
+        }
       }
-    }
-
-    // Apply new transaction effects
-    const newTransaction = { ...old, ...updates }
-    const newAccount = accounts.find((a) => a.id === newTransaction.accountId)
-    if (newAccount) {
-      const newBalance = newTransaction.type === "income"
-        ? newAccount.balance + newTransaction.amount
-        : newAccount.balance - newTransaction.amount
-      updateAccount(newAccount.id, { balance: newBalance })
-    }
-
-    if (newTransaction.type === "expense") {
-      const newBudget = budgets.find((b) => b.category === newTransaction.category)
-      if (newBudget) {
-        updateBudget(newBudget.id, { spent: newBudget.spent + newTransaction.amount })
-      }
+    } catch (error) {
+      console.error("Failed to update transaction:", error)
     }
   }
 
-  const deleteTransaction = (id: string) => {
+  const deleteTransaction = async (id: string) => {
     const transaction = transactions.find((t) => t.id === id)
     if (!transaction) return
 
-    // Revert balance
-    const account = accounts.find((a) => a.id === transaction.accountId)
-    if (account) {
-      const newBalance = transaction.type === "income"
-        ? account.balance - transaction.amount
-        : account.balance + transaction.amount
-      updateAccount(account.id, { balance: newBalance })
-    }
-
-    // Revert budget spent
-    if (transaction.type === "expense") {
-      const budget = budgets.find((b) => b.category === transaction.category)
-      if (budget) {
-        updateBudget(budget.id, { spent: budget.spent - transaction.amount })
-      }
-    }
-
     setTransactions((prev) => prev.filter((t) => t.id !== id))
+
+    try {
+      const res = await fetch(`/api/transactions?id=${id}`, {
+        method: "DELETE"
+      })
+
+      if (res.ok) {
+        // Re-fetch to ensure everything is synced
+        const financeRes = await fetch("/api/finance")
+        if (financeRes.ok) {
+          const data = await financeRes.json()
+          setAccounts(data.accounts)
+          setTransactions(data.transactions)
+          setBudgets(data.budgets)
+        }
+        router.refresh()
+      } else {
+        // Rollback
+        const financeRes = await fetch("/api/finance")
+        if (financeRes.ok) {
+          const data = await financeRes.json()
+          setAccounts(data.accounts)
+          setTransactions(data.transactions)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete transaction:", error)
+    }
   }
 
   const addReminder = (reminder: Reminder) => {
