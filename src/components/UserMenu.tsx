@@ -3,7 +3,7 @@
 import * as React from "react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Settings2, ShieldCheck, Moon, Sun, Check } from "lucide-react";
+import { LogOut, User, Moon, Sun, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -81,7 +81,9 @@ export function UserMenu() {
 
                 {/* Menu Options */}
                 <div className="space-y-1">
-                    <DropdownMenuItem className="rounded-2xl py-3.5 px-4 font-bold cursor-pointer focus:bg-primary/10 focus:text-primary space-x-4 transition-all active:scale-[0.98]">
+                    <DropdownMenuItem 
+                        onClick={() => router.push("/configuracoes")}
+                        className="rounded-2xl py-3.5 px-4 font-bold cursor-pointer focus:bg-primary/10 focus:text-primary space-x-4 transition-all active:scale-[0.98]">
                         <User size={18} className="text-slate-400" />
                         <span className="text-sm">Editar Perfil</span>
                     </DropdownMenuItem>
