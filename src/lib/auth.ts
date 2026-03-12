@@ -92,4 +92,8 @@ export const auth = betterAuth({
             enabled: true,
         },
     },
+    trustedOrigins: [
+        "http://localhost:3000",
+        "https://capitafin.zapcoretech.com",
+    ],
 });
