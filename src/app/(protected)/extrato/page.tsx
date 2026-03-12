@@ -29,9 +29,14 @@ import {
   ChevronRight,
   TrendingUp,
   TrendingDown,
+  FileDown,
+  Loader2
 } from "lucide-react"
 import { PremiumBalanceCard } from "@/components/ui/premium-balance-card"
 import { cn } from "@/lib/utils"
+import { exportToPDF } from "@/lib/pdf-export"
+import { authClient } from "@/lib/auth-client"
+import { toast } from "sonner"
 
 interface DaySummary {
   date: string
@@ -49,8 +54,10 @@ interface DaySummary {
 }
 
 export default function ExtratoPage() {
-  const { transactions, accounts } = useFinance()
+  const { transactions, accounts, getStartingBalance } = useFinance()
+  const { data: session } = authClient.useSession()
   const [selectedAccount, setSelectedAccount] = useState<string>("all")
+  const [isExporting, setIsExporting] = useState(false)
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
@@ -74,8 +81,6 @@ export default function ExtratoPage() {
     const [year, month] = currentMonth.split("-").map(Number)
     return { year, month: month - 1 }
   }, [currentMonth])
-
-  const { getStartingBalance } = useFinance()
 
   const dailySummaries = useMemo<DaySummary[]>(() => {
     const { year, month } = monthData
@@ -129,11 +134,39 @@ export default function ExtratoPage() {
     return { totalIncome, totalExpenses, balance: totalIncome - totalExpenses }
   }, [dailySummaries])
 
+  const handleExportPDF = async () => {
+    setIsExporting(true)
+    try {
+      const allTransactions = dailySummaries.flatMap(day => 
+        day.transactions.map(t => ({
+          ...t,
+          date: day.date
+        }))
+      ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+      exportToPDF({
+        userName: session?.user?.name || "Usuário",
+        period: monthName,
+        transactions: allTransactions,
+        summary: {
+          income: monthSummary.totalIncome,
+          expenses: monthSummary.totalExpenses,
+          balance: monthSummary.balance
+        }
+      })
+      toast.success("PDF gerado com sucesso!")
+    } catch (error) {
+       console.error(error)
+       toast.error("Erro ao gerar PDF")
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <AppShell title="Extrato">
       <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 space-y-8 sm:space-y-12">
 
-        {/* Global Controls */}
         {/* Global Controls */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-card/60 backdrop-blur-xl p-4 sm:p-5 rounded-[2rem] sm:rounded-[3rem] border border-white/5 shadow-2xl">
            {/* Month Navigation */}
@@ -232,26 +265,43 @@ export default function ExtratoPage() {
               </Button>
            </div>
 
-           {/* Account Selector */}
-           <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-            <SelectTrigger className="w-full lg:w-[320px] rounded-[1.5rem] sm:rounded-[2.2rem] bg-muted/20 border-white/5 h-14 sm:h-16 px-6 sm:px-8 font-black shadow-inner focus:ring-primary/20 text-foreground group transition-all hover:bg-muted/30">
-              <div className="flex items-center gap-4">
-                <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary group-hover:scale-110 transition-transform" />
-                <SelectValue placeholder="Todas as contas" />
-              </div>
-            </SelectTrigger>
-            <SelectContent className="rounded-3xl border-white/10 bg-background/80 backdrop-blur-3xl shadow-2xl p-2 min-w-[240px]">
-              <SelectItem value="all" className="rounded-2xl p-4 font-black uppercase text-[10px] tracking-widest cursor-pointer">Todas as contas</SelectItem>
-              {accounts.map((account) => (
-                <SelectItem key={account.id} value={account.id} className="rounded-2xl p-4 font-black cursor-pointer">
-                  <div className="flex items-center gap-4">
-                    <div className="h-4 w-4 rounded-full ring-2 ring-white/10 shadow-lg" style={{ backgroundColor: account.color }} />
-                    <span className="text-sm tracking-tight">{account.name}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+           <div className="flex flex-col sm:flex-row gap-4 grow lg:grow-0">
+            {/* Account Selector */}
+            <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+              <SelectTrigger className="w-full lg:w-[320px] rounded-[1.5rem] sm:rounded-[2.2rem] bg-muted/20 border-white/5 h-14 sm:h-16 px-6 sm:px-8 font-black shadow-inner focus:ring-primary/20 text-foreground group transition-all hover:bg-muted/30">
+                <div className="flex items-center gap-4">
+                  <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary group-hover:scale-110 transition-transform" />
+                  <SelectValue placeholder="Todas as contas" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-3xl border-white/10 bg-background/80 backdrop-blur-3xl shadow-2xl p-2 min-w-[240px]">
+                <SelectItem value="all" className="rounded-2xl p-4 font-black uppercase text-[10px] tracking-widest cursor-pointer">Todas as contas</SelectItem>
+                {accounts.map((account) => (
+                  <SelectItem key={account.id} value={account.id} className="rounded-2xl p-4 font-black cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <div className="h-4 w-4 rounded-full ring-2 ring-white/10 shadow-lg" style={{ backgroundColor: account.color }} />
+                      <span className="text-sm tracking-tight">{account.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Export Button */}
+            <Button 
+              onClick={handleExportPDF}
+              disabled={isExporting || dailySummaries.length === 0}
+              className="rounded-[1.5rem] sm:rounded-[2.2rem] h-14 sm:h-16 px-6 sm:px-8 bg-primary hover:bg-primary/90 text-white font-black shadow-lg shadow-primary/20 transition-all active:scale-95 flex items-center gap-3"
+            >
+              {isExporting ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <FileDown className="h-5 w-5" />
+              )}
+              <span className="hidden sm:inline">Exportar Extrato</span>
+              <span className="sm:hidden">PDF</span>
+            </Button>
+           </div>
         </div>
 
         {/* Month Analytics */}
