@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { Plus, ArrowUpRight, ArrowDownLeft, Filter, Search, Wallet } from "lucide-react"
+import { Plus, ArrowUpRight, ArrowDownLeft, Filter, Search, Wallet, Pencil, Trash2 } from "lucide-react"
 import { AppShell } from "@/components/AppShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -34,8 +34,9 @@ import type { Transaction } from "@/lib/types"
 import Link from "next/link"
 
 export default function TransacoesPage() {
-  const { transactions, addTransaction, deleteTransaction, accounts, categories, getTotalIncome, getTotalExpenses } = useFinance()
+  const { transactions, addTransaction, deleteTransaction, updateTransaction, accounts, categories, getTotalIncome, getTotalExpenses } = useFinance()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [filter, setFilter] = useState<"all" | "income" | "expense">("all")
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -44,27 +45,53 @@ export default function TransacoesPage() {
     amount: "",
     type: "expense" as Transaction["type"],
     category: "",
+    categoryId: "",
     accountId: "",
     date: new Date().toISOString().split("T")[0],
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    addTransaction({
-      id: crypto.randomUUID(),
+    
+    const transactionData = {
       description: formData.description,
       amount: parseFloat(formData.amount) || 0,
       type: formData.type,
-      category: formData.category,
+      category: categories.find(c => c.id === formData.categoryId)?.name || "Geral",
+      categoryId: formData.categoryId,
       accountId: formData.accountId,
       date: formData.date,
       isPaid: true,
-    })
+    }
+
+    if (editingTransaction) {
+      updateTransaction(editingTransaction.id, transactionData)
+    } else {
+      addTransaction({
+        id: crypto.randomUUID(),
+        ...transactionData
+      })
+    }
     resetForm()
   }
 
+  const handleEditClick = (t: Transaction) => {
+    setEditingTransaction(t)
+    setFormData({
+      description: t.description,
+      amount: t.amount.toString(),
+      type: t.type,
+      category: t.category,
+      categoryId: t.categoryId || "",
+      accountId: t.accountId,
+      date: t.date,
+    })
+    setIsDialogOpen(true)
+  }
+
   const resetForm = () => {
-    setFormData({ description: "", amount: "", type: "expense", category: "", accountId: "", date: new Date().toISOString().split("T")[0] })
+    setFormData({ description: "", amount: "", type: "expense", category: "", categoryId: "", accountId: "", date: new Date().toISOString().split("T")[0] })
+    setEditingTransaction(null)
     setIsDialogOpen(false)
   }
 
@@ -147,7 +174,7 @@ export default function TransacoesPage() {
               <DialogContent className="rounded-[2.5rem] border-white/10 bg-background/80 backdrop-blur-2xl shadow-2xl p-6 sm:p-10">
                 <DialogHeader>
                   <DialogTitle className="text-xl sm:text-2xl font-black tracking-tight">
-                    {accounts.length === 0 ? "Ops!" : "Novo Lançamento"}
+                    {accounts.length === 0 ? "Ops!" : editingTransaction ? "Editar Lançamento" : "Novo Lançamento"}
                   </DialogTitle>
                 </DialogHeader>
 
@@ -193,10 +220,10 @@ export default function TransacoesPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Categoria</label>
-                      <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                      <Select value={formData.categoryId} onValueChange={(value) => setFormData({ ...formData, categoryId: value })}>
                         <SelectTrigger className="rounded-2xl bg-muted/20 border-white/10 h-12 px-4 focus:ring-primary/20 font-bold"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                        <SelectContent className="rounded-2xl border-white/10 bg-background/80 backdrop-blur-2xl">
-                          {filteredCategories.map((cat) => (<SelectItem key={cat.id} value={cat.name} className="rounded-xl font-bold">{cat.name}</SelectItem>))}
+                        <SelectContent position="popper" sideOffset={4} className="rounded-2xl border-white/10 bg-background/80 backdrop-blur-2xl">
+                          {filteredCategories.map((cat) => (<SelectItem key={cat.id} value={cat.id} className="rounded-xl font-bold">{cat.name}</SelectItem>))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -204,7 +231,7 @@ export default function TransacoesPage() {
                       <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Conta</label>
                       <Select value={formData.accountId} onValueChange={(value) => setFormData({ ...formData, accountId: value })}>
                         <SelectTrigger className="rounded-2xl bg-muted/20 border-white/10 h-12 px-4 focus:ring-primary/20 font-bold"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                        <SelectContent className="rounded-2xl border-white/10 bg-background/80 backdrop-blur-2xl">
+                        <SelectContent position="popper" sideOffset={4} className="rounded-2xl border-white/10 bg-background/80 backdrop-blur-2xl">
                           {accounts.map((account) => (<SelectItem key={account.id} value={account.id} className="rounded-xl font-bold">{account.name}</SelectItem>))}
                         </SelectContent>
                       </Select>
@@ -253,9 +280,14 @@ export default function TransacoesPage() {
                           <span className={cn("text-base sm:text-lg font-black tabular-nums tracking-tight", isIncome ? "text-green-500" : "text-foreground")}>
                             {isIncome ? "+" : "-"} {formatCurrency(transaction.amount)}
                           </span>
-                          <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-muted/20 text-muted-foreground hover:text-destructive hover:bg-red-500/10 sm:opacity-0 group-hover:opacity-100 transition-all font-black shrink-0" onClick={() => deleteTransaction(transaction.id)}>
-                            ×
-                          </Button>
+                          <div className="flex items-center gap-2">
+                             <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-muted/20 text-muted-foreground hover:text-primary hover:bg-primary/10 sm:opacity-0 group-hover:opacity-100 transition-all font-black shrink-0" onClick={() => handleEditClick(transaction)}>
+                               <Pencil className="h-4 w-4" />
+                             </Button>
+                             <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-muted/20 text-muted-foreground hover:text-destructive hover:bg-red-500/10 sm:opacity-0 group-hover:opacity-100 transition-all font-black shrink-0" onClick={() => deleteTransaction(transaction.id)}>
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

@@ -20,10 +20,9 @@ import {
     SelectValue
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Sparkles, Receipt, Type, AlertCircle, Wallet } from "lucide-react";
+import { Plus, Sparkles, Receipt, Type, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useFinance } from "@/lib/finance-context";
-import { cn } from "@/lib/utils";
 
 interface AddTransactionDialogProps {
     isGuest?: boolean;
@@ -56,6 +55,7 @@ export function AddTransactionDialog({ isGuest, children }: AddTransactionDialog
                 amount: valor,
                 type: "expense",
                 category: categories.find(c => c.id === categoryId)?.name || "Geral",
+                categoryId: categoryId,
                 accountId: accountId,
                 date: new Date().toISOString().split('T')[0],
                 isPaid: true

@@ -10,7 +10,7 @@ import {
     goals,
     goalContributions
 } from "@/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
     try {
@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
                 { nome: "Saúde", icon: "heart", color: "#ef4444", type: "expense", userId },
                 { nome: "Lazer", icon: "gamepad", color: "#8b5cf6", type: "expense", userId },
                 { nome: "Educação", icon: "book", color: "#06b6d4", type: "expense", userId },
+                { nome: "Cartão de Crédito", icon: "credit-card", color: "#4f46e5", type: "expense", userId },
                 { nome: "Salário", icon: "briefcase", color: "#22c55e", type: "income", userId },
                 { nome: "Freelance", icon: "laptop", color: "#6366f1", type: "income", userId },
             ];
@@ -100,22 +101,24 @@ export async function GET(req: NextRequest) {
                 isPaid: r.isPaid,
                 accountId: r.accountId
             })),
-            budgets: userBudgets.map(b => {
-                // Calculate spent for each budget
-                const spent = rawTransactions
-                    .filter(t => t.type === 'expense' && t.categoryName === b.category)
-                    .reduce((sum, t) => sum + t.amount, 0);
-                
-                return {
-                    id: b.id,
-                    category: b.category,
-                    limit: b.limit,
-                    spent: spent,
-                    color: userCategories.find(c => c.nome === b.category)?.color || "#8b5cf6",
-                    limitType: b.limitType,
-                    limitValue: b.limitValue
-                };
-            }),
+            budgets: userCategories
+                .filter(c => c.type === 'expense')
+                .map(cat => {
+                    const existingBudget = userBudgets.find(b => b.category === cat.nome);
+                    const spent = rawTransactions
+                        .filter(t => t.type === 'expense' && t.categoryName === cat.nome)
+                        .reduce((sum, t) => sum + t.amount, 0);
+                    
+                    return {
+                        id: existingBudget?.id || cat.id,
+                        category: cat.nome,
+                        limit: existingBudget?.limit || 0,
+                        spent: spent,
+                        color: cat.color,
+                        limitType: existingBudget?.limitType || 'value',
+                        limitValue: existingBudget?.limitValue || 0
+                    };
+                }),
             categories: userCategories.map(c => ({
                 id: c.id,
                 name: c.nome,

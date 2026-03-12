@@ -13,6 +13,7 @@ export interface Transaction {
     amount: number
     type: 'income' | 'expense'
     category: string
+    categoryId?: string
     accountId: string
     date: string
     isPaid: boolean

@@ -25,6 +25,7 @@ interface FinanceContextType {
   updateBudget: (id: string, budget: Partial<Budget>) => void
   addBudget: (budget: Budget) => void
   deleteBudget: (id: string) => void
+  addCategory: (category: { nome: string; icon: string; color: string; type: string }) => Promise<Category | undefined>
   addGoal: (goal: Goal) => void
   updateGoal: (id: string, goal: Partial<Goal>) => void
   deleteGoal: (id: string) => void
@@ -247,6 +248,38 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     setBudgets((prev) => prev.filter((b) => b.id !== id))
   }
 
+  const addCategory = async (cat: { nome: string; icon: string; color: string; type: string }) => {
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        body: JSON.stringify(cat),
+      })
+      if (res.ok) {
+        const newCat = await res.json()
+        setCategories((prev) => {
+          const exists = prev.find(c => c.id === newCat.id)
+          if (exists) return prev
+          return [...prev, {
+            id: newCat.id,
+            name: newCat.nome,
+            icon: newCat.icon,
+            color: newCat.color,
+            type: newCat.type
+          }]
+        })
+        return {
+          id: newCat.id,
+          name: newCat.nome,
+          icon: newCat.icon,
+          color: newCat.color,
+          type: newCat.type
+        } as Category
+      }
+    } catch (error) {
+      console.error("Failed to add category:", error)
+    }
+  }
+
   const addGoal = (goal: Goal) => {
     setGoals((prev) => [...prev, goal])
   }
@@ -355,6 +388,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         updateBudget,
         addBudget,
         deleteBudget,
+        addCategory,
         addGoal,
         updateGoal,
         deleteGoal,

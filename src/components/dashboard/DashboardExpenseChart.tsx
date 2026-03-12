@@ -58,7 +58,14 @@ export function DashboardExpenseChart() {
     "#DDD6FE",
   ]
 
-  const chartData = budgets.map((budget, index) => {
+  // Sort budgets by spent amount descending and filter out zero if there are any non-zero ones
+  const activeBudgets = React.useMemo(() => {
+    const sorted = [...budgets].sort((a, b) => b.spent - a.spent)
+    const hasSpent = sorted.some(b => b.spent > 0)
+    return hasSpent ? sorted.filter(b => b.spent > 0) : sorted
+  }, [budgets])
+
+  const chartData = activeBudgets.map((budget, index) => {
     const key = budget.category.toLowerCase().replace(/\s+/g, '-')
     const color = purplePalette[index % purplePalette.length]
     return {
@@ -70,7 +77,7 @@ export function DashboardExpenseChart() {
     }
   })
 
-  const chartConfig = budgets.reduce((config, budget, index) => {
+  const chartConfig = activeBudgets.reduce((config, budget, index) => {
     const key = budget.category.toLowerCase().replace(/\s+/g, '-')
     const color = purplePalette[index % purplePalette.length]
     config[key] = {
@@ -166,13 +173,13 @@ export function DashboardExpenseChart() {
       </div>
 
       {/* Legend list */}
-      {budgets.length > 0 && (
+      {activeBudgets.length > 0 && (
         <div 
           className="px-4 pb-4 space-y-1"
           onMouseLeave={() => setActiveIndex(null)}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-1">
-            {budgets.slice(0, 4).map((budget, index) => {
+            {activeBudgets.slice(0, 4).map((budget, index) => {
               const pct = totalSpent > 0 ? (budget.spent / totalSpent * 100) : 0
               const color = purplePalette[index % purplePalette.length]
               const isActive = activeIndex === index
