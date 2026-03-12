@@ -54,7 +54,7 @@ function StatCard({ title, value, change, changePercent, trend, subtitle, color 
   const isDown = trend === "down"
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-card border border-border p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-all group">
+    <div className="relative overflow-hidden rounded-2xl bg-card border border-border p-4 sm:p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-all group min-h-[140px]">
       {/* Decorative glow */}
       <div
         className="absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-10 blur-2xl group-hover:opacity-20 transition-opacity"
@@ -62,16 +62,16 @@ function StatCard({ title, value, change, changePercent, trend, subtitle, color 
       />
 
       <div className="flex items-start justify-between">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{title}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground truncate">{title}</p>
           {subtitle && (
-            <p className="text-[9px] text-muted-foreground font-bold mt-0.5">{subtitle}</p>
+            <p className="text-[9px] text-muted-foreground font-bold mt-0.5 truncate">{subtitle}</p>
           )}
         </div>
         {(change || changePercent) && (
           <div
             className={cn(
-              "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black",
+              "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black shrink-0 ml-2",
               isUp && "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
               isDown && "bg-red-500/15 text-red-600 dark:text-red-400",
               !isUp && !isDown && "bg-muted text-muted-foreground"
@@ -83,9 +83,11 @@ function StatCard({ title, value, change, changePercent, trend, subtitle, color 
         )}
       </div>
 
-      <div className="flex items-end justify-between mt-auto">
-        <h3 className="text-2xl font-black tracking-tight tabular-nums text-foreground">{value}</h3>
-        {miniChart && <MiniSparkline data={miniChart} color={color} />}
+      <div className="flex items-end justify-between mt-auto gap-4">
+        <h3 className="text-xl sm:text-2xl font-black tracking-tight tabular-nums text-foreground flex-1 truncate">{value}</h3>
+        <div className="shrink-0">
+          {miniChart && <MiniSparkline data={miniChart} color={color} />}
+        </div>
       </div>
     </div>
   )
@@ -122,7 +124,7 @@ export function DashboardStatsCards() {
   })
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
         title="Saldo Total"
         subtitle="Todas as contas"
