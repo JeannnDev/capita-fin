@@ -201,3 +201,28 @@ export const goalContributionsRelations = relations(goalContributions, ({ one })
     goal: one(goals, { fields: [goalContributions.goalId], references: [goals.id] }),
     account: one(financialAccounts, { fields: [goalContributions.accountId], references: [financialAccounts.id] }),
 }));
+
+export const uploads = pgTable("uploads", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    path: text("path").notNull(),
+    publicPath: text("public_path").notNull(),
+    rotina: text("rotina").notNull(),
+    recordId: text("record_id").notNull(),
+    fileName: text("file_name").notNull(),
+    fileType: text("file_type").notNull(),
+    fileSize: text("file_size").notNull(),
+    status: text("status").notNull(),
+    createdBy: text("created_by")
+        .notNull()
+        .references(() => users.id, { onDelete: 'cascade' }),
+    updatedBy: text("updated_by")
+        .notNull()
+        .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const uploadsRelations = relations(uploads, ({ one }) => ({
+    creator: one(users, { fields: [uploads.createdBy], references: [users.id] }),
+    updater: one(users, { fields: [uploads.updatedBy], references: [users.id] }),
+}));

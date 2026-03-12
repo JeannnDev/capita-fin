@@ -123,55 +123,55 @@ export default function LembretesPage() {
 
     return (
       <div className={cn(
-        "group relative flex items-center justify-between rounded-3xl border p-5 transition-all duration-500",
+        "group relative flex flex-col sm:flex-row sm:items-center justify-between rounded-[2rem] sm:rounded-3xl border p-4 sm:p-5 transition-all duration-500 gap-4 sm:gap-5",
         isOverdue 
           ? "border-red-500/30 bg-red-500/5 hover:bg-red-500/10 shadow-lg shadow-red-500/5" 
           : "bg-card border-border hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/5"
       )}>
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-4 sm:gap-5">
            <div className={cn(
-             "flex h-14 w-14 items-center justify-center rounded-2xl shadow-inner transition-transform group-hover:scale-110",
+             "flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl shadow-inner transition-transform group-hover:scale-110",
              reminder.isPaid ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : isOverdue ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-primary/10 text-primary"
            )}>
              {reminder.isPaid ? (
-               <Check className="h-7 w-7" />
+               <Check className="h-6 w-6 sm:h-7 sm:w-7" />
              ) : isOverdue ? (
-               <AlertCircle className="h-7 w-7" />
+               <AlertCircle className="h-6 w-6 sm:h-7 sm:w-7" />
              ) : (
-               <Calendar className="h-7 w-7" style={{ color }} />
+               <Calendar className="h-6 w-6 sm:h-7 sm:w-7" style={{ color }} />
              )}
            </div>
            
-           <div className="space-y-1">
+           <div className="space-y-0.5 min-w-0">
              <div className="flex items-center gap-2">
-               <p className="text-lg font-black tracking-tight text-foreground uppercase leading-tight">{reminder.title}</p>
-               {isOverdue && <span className="text-[9px] font-black bg-red-500/90 text-white px-2 py-0.5 rounded-full uppercase animate-pulse shadow-sm">Atrasado</span>}
+               <p className="text-base sm:text-lg font-black tracking-tight text-foreground uppercase leading-tight truncate">{reminder.title}</p>
+               {isOverdue && <span className="text-[8px] sm:text-[9px] font-black bg-red-500/90 text-white px-2 py-0.5 rounded-full uppercase shrink-0 shadow-sm">Atrasado</span>}
              </div>
-             <div className="flex flex-wrap items-center gap-3">
+             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                <span className={cn(
-                 "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md",
+                 "text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md",
                  isOverdue ? "text-red-500 bg-red-500/10" : "text-muted-foreground bg-muted/30"
                )}>
                  {reminder.isPaid ? "Liquidado" : getRelativeDate(reminder.dueDate)}
                </span>
-               <div className="h-1 w-1 rounded-full bg-border" />
-               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">{reminder.category}</span>
-               <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-none text-[9px] font-black uppercase tracking-[0.15em] py-0.5 px-2">{getFrequencyLabel(reminder.frequency)}</Badge>
+               <div className="hidden xs:block h-1 w-1 rounded-full bg-border" />
+               <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 truncate max-w-[80px] sm:max-w-none">{reminder.category}</span>
+               <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-none text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] py-0.5 px-2">{getFrequencyLabel(reminder.frequency)}</Badge>
              </div>
            </div>
         </div>
 
-        <div className="flex items-center gap-6">
-           <div className="flex flex-col items-end">
+        <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/40 sm:border-l sm:pl-6">
+           <div className="flex flex-col items-start sm:items-end">
              <span className={cn(
-               "text-2xl font-black tracking-tighter tabular-nums leading-none",
+               "text-xl sm:text-2xl font-black tracking-tighter tabular-nums leading-none",
                isOverdue ? "text-red-500" : "text-foreground"
              )}>{formatCurrency(reminder.amount)}</span>
-             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 mt-1">Valor Previsto</span>
+             <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 mt-1">Valor Previsto</span>
            </div>
 
            {showActions && !reminder.isPaid && (
-             <div className="flex items-center gap-2 border-l border-border pl-4">
+             <div className="flex items-center gap-2 pl-0 sm:pl-0">
                <Button 
                  variant="ghost" 
                  size="icon" 

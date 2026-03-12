@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    DollarSign,
     Mail,
     Lock,
     User,
@@ -18,8 +17,20 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-
+import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { z } from "zod";
+
+const loginSchema = z.object({
+    email: z.string().email("E-mail inválido"),
+    password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
+});
+
+const signupSchema = z.object({
+    name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
+    email: z.string().email("E-mail inválido"),
+    password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
+});
 
 export default function LoginPage() {
     const [mode, setMode] = useState<"login" | "signup">("login");
@@ -28,10 +39,33 @@ export default function LoginPage() {
     const [name, setName] = useState("");
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const router = useRouter();
+
+    const switchMode = (newMode: "login" | "signup") => {
+        setMode(newMode);
+        setErrors({});
+    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrors({});
+
+        const validation = loginSchema.safeParse({ email, password });
+        if (!validation.success) {
+            const formattedErrors: Record<string, string> = {};
+            const fieldErrors = validation.error.flatten().fieldErrors;
+            
+            Object.entries(fieldErrors).forEach(([key, messages]) => {
+                if (messages && messages.length > 0) {
+                    formattedErrors[key] = messages[0];
+                }
+            });
+            
+            setErrors(formattedErrors);
+            return;
+        }
+
         setLoading(true);
         const { error } = await authClient.signIn.email({
             email,
@@ -49,6 +83,23 @@ export default function LoginPage() {
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrors({});
+
+        const validation = signupSchema.safeParse({ name, email, password });
+        if (!validation.success) {
+            const formattedErrors: Record<string, string> = {};
+            const fieldErrors = validation.error.flatten().fieldErrors;
+
+            Object.entries(fieldErrors).forEach(([key, messages]) => {
+                if (messages && messages.length > 0) {
+                    formattedErrors[key] = messages[0];
+                }
+            });
+
+            setErrors(formattedErrors);
+            return;
+        }
+
         setLoading(true);
         const { error } = await authClient.signUp.email({
             email,
@@ -65,8 +116,18 @@ export default function LoginPage() {
         setLoading(false);
     };
 
+    const handleGoogleLogin = async () => {
+        const { error } = await authClient.signIn.social({
+            provider: "google",
+        });
+
+        if (error) {
+            alert(error.message);
+        }
+    };
+
     return (
-        <div className="min-h-screen w-full flex flex-col md:flex-row bg-slate-950 overflow-hidden font-sans">
+        <div className="min-h-screen w-full flex flex-col md:flex-row bg-slate-950 overflow-hidden font-sans text-foreground">
             {/* --- Left Hero Section (Visual) --- */}
             <div className="relative hidden md:flex md:w-1/2 lg:w-[50%] bg-slate-900 border-r border-white/5 overflow-hidden items-center justify-center p-12 lg:p-24 h-screen sticky top-0">
                 <div
@@ -163,12 +224,12 @@ export default function LoginPage() {
                                             <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                                             <Input
                                                 placeholder="Seu nome"
-                                                className="h-11 pl-10 rounded-lg border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:ring-primary/20 transition-all"
+                                                className={cn("h-11 pl-10 rounded-xl border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:ring-primary/20 transition-all text-slate-900 dark:text-white", errors.name && "border-red-500 focus:ring-red-500/20")}
                                                 value={name}
                                                 onChange={(e) => setName(e.target.value)}
-                                                required
                                             />
                                         </div>
+                                        {errors.name && <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider ml-1">{errors.name}</p>}
                                     </div>
                                 )}
 
@@ -179,12 +240,12 @@ export default function LoginPage() {
                                         <Input
                                             placeholder="seu@email.com"
                                             type="email"
-                                            className="h-11 pl-10 rounded-lg border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:ring-primary/20 transition-all font-medium"
+                                            className={cn("h-11 pl-10 rounded-xl border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:ring-primary/20 transition-all font-medium text-slate-900 dark:text-white", errors.email && "border-red-500 focus:ring-red-500/20")}
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            required
                                         />
                                     </div>
+                                    {errors.email && <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider ml-1">{errors.email}</p>}
                                 </div>
 
                                 <div className="space-y-1.5">
@@ -201,10 +262,9 @@ export default function LoginPage() {
                                         <Input
                                             placeholder="••••••••"
                                             type={showPassword ? "text" : "password"}
-                                            className="h-11 pl-10 pr-10 rounded-lg border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:ring-primary/20 transition-all"
+                                            className={cn("h-11 pl-10 pr-10 rounded-xl border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:ring-primary/20 transition-all text-slate-900 dark:text-white", errors.password && "border-red-500 focus:ring-red-500/20")}
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            required
                                         />
                                         <button
                                             type="button"
@@ -214,6 +274,7 @@ export default function LoginPage() {
                                             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                         </button>
                                     </div>
+                                    {errors.password && <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider ml-1">{errors.password}</p>}
                                 </div>
                             </motion.div>
                         </AnimatePresence>
@@ -221,7 +282,7 @@ export default function LoginPage() {
                         <Button
                             type="submit"
                             disabled={loading}
-                            className="w-full h-11 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold text-sm shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
+                            className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
                         >
                             {loading ? "Processando..." : (mode === "login" ? "Entrar" : "Criar")}
                         </Button>
@@ -238,7 +299,8 @@ export default function LoginPage() {
                         <Button
                             variant="outline"
                             type="button"
-                            className="w-full h-11 rounded-lg border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-white/10 transition-all flex items-center justify-center space-x-3"
+                            onClick={handleGoogleLogin}
+                            className="w-full h-11 rounded-xl border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-white/10 transition-all flex items-center justify-center space-x-3"
                         >
                             <Chrome className="h-4 w-4 text-primary" />
                             <span>Entrar com Google</span>
@@ -249,7 +311,7 @@ export default function LoginPage() {
                         <p className="text-slate-500 dark:text-slate-400 font-medium">
                             {mode === "login" ? "Ainda não tem uma conta?" : "Já possui acesso?"}
                             <button
-                                onClick={() => setMode(mode === "login" ? "signup" : "login")}
+                                onClick={() => switchMode(mode === "login" ? "signup" : "login")}
                                 className="ml-1.5 text-primary font-bold hover:underline"
                             >
                                 {mode === "login" ? "Criar conta" : "Entrar"}
@@ -266,7 +328,6 @@ export default function LoginPage() {
                     </div>
                 </div>
             </div>
-        </div >
+        </div>
     );
 }
-

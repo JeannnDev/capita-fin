@@ -60,23 +60,23 @@ export function DashboardMonthlyChart() {
     <div className="relative overflow-hidden rounded-2xl h-full shadow-xl bg-card border border-border"
     >
       {/* Top Header */}
-      <div className="p-5 pb-0">
-        <div className="flex items-start justify-between">
-          {/* Left metrics */}
-          <div className="flex gap-8">
-            <div>
+      <div className="p-4 sm:p-5 pb-0">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+          {/* Metrics */}
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 w-full sm:w-auto">
+            <div className="flex-1 min-w-[120px]">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-1">Total Receitas</p>
-              <p className="text-2xl font-black tracking-tight text-foreground tabular-nums">
+              <p className="text-xl sm:text-2xl font-black tracking-tight text-foreground tabular-nums truncate">
                 {formatCurrency(totalReceitas)}
               </p>
               <div className="flex items-center gap-1 mt-1">
                 <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">+{Math.abs(healthPct).toFixed(2)}%</span>
+                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">+{Math.abs(healthPct).toFixed(1)}%</span>
                 <span className="text-[10px] text-muted-foreground font-medium ml-1">vs despesas</span>
               </div>
             </div>
 
-            <div className="border-l border-border pl-8">
+            <div className="sm:border-l border-border pl-0 sm:pl-8 flex-1 min-w-[120px]">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-1">Saúde</p>
               <div className="flex items-center gap-2">
                 {isHealthy ? (
@@ -84,7 +84,7 @@ export function DashboardMonthlyChart() {
                 ) : (
                   <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
                 )}
-                <p className={cn("text-2xl font-black tracking-tight tabular-nums", isHealthy ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                <p className={cn("text-xl sm:text-2xl font-black tracking-tight tabular-nums", isHealthy ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
                   {healthPct.toFixed(1)}%
                 </p>
               </div>
@@ -93,7 +93,7 @@ export function DashboardMonthlyChart() {
                 <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">
                   {formatCurrency(Math.abs(totalReceitas - totalDespesas))}
                 </span>
-                <span className="text-[10px] text-muted-foreground font-medium ml-1">saldo líquido</span>
+                <span className="text-[10px] text-muted-foreground font-medium ml-1">líquido</span>
               </div>
             </div>
           </div>

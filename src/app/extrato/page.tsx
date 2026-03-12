@@ -14,6 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
   Wallet,
   Calendar,
   ArrowRight,
@@ -126,39 +131,122 @@ export default function ExtratoPage() {
 
   return (
     <AppShell title="Extrato">
-      <div className="max-w-4xl mx-auto w-full px-6 py-6 space-y-12">
+      <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 space-y-8 sm:space-y-12">
 
         {/* Global Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-card p-4 rounded-[2.5rem] border border-border shadow-sm">
+        {/* Global Controls */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-card/60 backdrop-blur-xl p-4 sm:p-5 rounded-[2rem] sm:rounded-[3rem] border border-white/5 shadow-2xl">
            {/* Month Navigation */}
-           <div className="flex items-center gap-1 bg-muted/40 p-1.5 rounded-[1.5rem] border border-border shadow-inner">
-              <Button variant="ghost" size="icon" onClick={() => navigateMonth("prev")} className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary transition-all">
-                <ChevronLeft className="h-5 w-5" />
+           <div className="flex items-center gap-1.5 bg-muted/20 p-1.5 rounded-[1.5rem] sm:rounded-[2.2rem] border border-white/5 shadow-inner grow lg:grow-0">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigateMonth("prev")} 
+                className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl hover:bg-primary/20 hover:text-primary transition-all shrink-0 active:scale-95"
+              >
+                <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
               </Button>
-              <div className="flex items-center gap-4 px-6 min-w-[180px] justify-center text-foreground/80">
-                <Calendar className="h-4 w-4 text-primary/60" />
-                <span className="text-sm font-black capitalize tracking-tight">{monthName}</span>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => navigateMonth("next")} className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary transition-all">
-                <ChevronRight className="h-5 w-5" />
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="flex-1 flex items-center gap-2 sm:gap-4 px-2 sm:px-8 min-w-0 sm:min-w-[200px] justify-center text-foreground hover:bg-white/5 rounded-xl sm:rounded-2xl py-2 transition-all active:scale-[0.98] group">
+                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-violet-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs sm:text-base font-black capitalize tracking-tight truncate group-hover:text-primary transition-colors">{monthName}</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] sm:w-[350px] p-5 rounded-[2rem] border-white/10 bg-background/95 backdrop-blur-2xl shadow-2xl" align="center">
+                   <div className="space-y-6">
+                      <div className="flex items-center justify-between px-2">
+                         <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Selecionar Período</h4>
+                         <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10"
+                            onClick={() => {
+                               const now = new Date()
+                               setCurrentMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`)
+                            }}
+                         >
+                            Ir para hoje
+                         </Button>
+                      </div>
+
+                      <div className="flex items-center justify-between bg-muted/30 p-1.5 rounded-2xl border border-white/5">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 rounded-xl"
+                          onClick={() => {
+                            const [year, month] = currentMonth.split("-")
+                            setCurrentMonth(`${parseInt(year) - 1}-${month}`)
+                          }}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-lg font-black tracking-tighter tabular-nums">{currentMonth.split("-")[0]}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 rounded-xl"
+                          onClick={() => {
+                            const [year, month] = currentMonth.split("-")
+                            setCurrentMonth(`${parseInt(year) + 1}-${month}`)
+                          }}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        {["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"].map((m, idx) => {
+                          const isSelected = parseInt(currentMonth.split("-")[1]) === idx + 1
+                          return (
+                            <Button
+                              key={m}
+                              variant={isSelected ? "default" : "ghost"}
+                              className={cn(
+                                "h-11 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+                                isSelected ? "bg-primary text-white shadow-lg shadow-primary/20" : "hover:bg-primary/10 hover:text-primary"
+                              )}
+                              onClick={() => {
+                                const year = currentMonth.split("-")[0]
+                                setCurrentMonth(`${year}-${String(idx + 1).padStart(2, "0")}`)
+                              }}
+                            >
+                              {m}
+                            </Button>
+                          )
+                        })}
+                      </div>
+                   </div>
+                </PopoverContent>
+              </Popover>
+
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigateMonth("next")} 
+                className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl hover:bg-primary/20 hover:text-primary transition-all shrink-0 active:scale-95"
+              >
+                <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
               </Button>
            </div>
 
            {/* Account Selector */}
            <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-            <SelectTrigger className="w-full sm:w-[280px] rounded-[1.5rem] bg-muted/40 border-border h-14 px-6 font-bold shadow-sm focus:ring-primary/20 text-foreground/80">
-              <div className="flex items-center gap-3">
-                <Wallet className="h-4 w-4 text-primary" />
+            <SelectTrigger className="w-full lg:w-[320px] rounded-[1.5rem] sm:rounded-[2.2rem] bg-muted/20 border-white/5 h-14 sm:h-16 px-6 sm:px-8 font-black shadow-inner focus:ring-primary/20 text-foreground group transition-all hover:bg-muted/30">
+              <div className="flex items-center gap-4">
+                <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary group-hover:scale-110 transition-transform" />
                 <SelectValue placeholder="Todas as contas" />
               </div>
             </SelectTrigger>
-            <SelectContent className="rounded-2xl border-border bg-card backdrop-blur-2xl shadow-2xl p-2">
-              <SelectItem value="all" className="rounded-xl p-3 font-bold">Todas as contas</SelectItem>
+            <SelectContent className="rounded-3xl border-white/10 bg-background/80 backdrop-blur-3xl shadow-2xl p-2 min-w-[240px]">
+              <SelectItem value="all" className="rounded-2xl p-4 font-black uppercase text-[10px] tracking-widest cursor-pointer">Todas as contas</SelectItem>
               {accounts.map((account) => (
-                <SelectItem key={account.id} value={account.id} className="rounded-xl p-3 font-bold">
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 w-3 rounded-full ring-2 ring-border shadow-sm" style={{ backgroundColor: account.color }} />
-                    {account.name}
+                <SelectItem key={account.id} value={account.id} className="rounded-2xl p-4 font-black cursor-pointer">
+                  <div className="flex items-center gap-4">
+                    <div className="h-4 w-4 rounded-full ring-2 ring-white/10 shadow-lg" style={{ backgroundColor: account.color }} />
+                    <span className="text-sm tracking-tight">{account.name}</span>
                   </div>
                 </SelectItem>
               ))}
@@ -189,7 +277,7 @@ export default function ExtratoPage() {
         />
 
         {/* Daily Summaries Timeline */}
-        <div className="space-y-12 relative before:absolute before:left-7 before:top-8 before:bottom-8 before:w-[2px] before:bg-gradient-to-b before:from-primary/30 before:via-primary/10 before:to-transparent">
+        <div className="space-y-8 sm:space-y-12 relative before:absolute before:left-5 sm:before:left-7 before:top-8 before:bottom-8 before:w-[2px] before:bg-gradient-to-b before:from-primary/30 before:via-primary/10 before:to-transparent">
           {dailySummaries.length === 0 ? (
             <Card className="border-dashed bg-transparent shadow-none border-border p-20 text-center col-span-full">
               <div className="flex flex-col items-center gap-6">
@@ -207,29 +295,28 @@ export default function ExtratoPage() {
               const dayDate = new Date(day.date + "T12:00:00")
               const dayName = dayDate.toLocaleDateString("pt-BR", { weekday: "long" })
               const dayNumber = dayDate.getDate()
-              const variation = day.closingBalance - day.openingBalance
  
               return (
-                <div key={day.date} className="relative pl-20 group">
+                <div key={day.date} className="relative pl-14 sm:pl-20 group">
                   {/* Balanced Timeline Pin */}
-                  <div className="absolute left-0 top-0 h-14 w-14 flex items-center justify-center z-30">
-                     <div className="h-12 w-12 rounded-2xl bg-background border-2 border-primary/20 shadow-xl flex flex-col items-center justify-center ring-4 ring-background transform group-hover:scale-110 group-hover:border-primary transition-all duration-500">
-                        <span className="text-[9px] font-black uppercase text-primary leading-none mb-1">{dayName.substring(0, 3)}</span>
-                        <span className="text-xl font-black text-foreground leading-none tabular-nums tracking-tighter">{dayNumber}</span>
+                  <div className="absolute left-0 top-0 h-10 w-10 sm:h-14 sm:w-14 flex items-center justify-center z-30">
+                     <div className="h-9 w-9 sm:h-12 w-12 rounded-xl sm:rounded-2xl bg-background border-2 border-primary/20 shadow-xl flex flex-col items-center justify-center ring-4 ring-background transform group-hover:scale-110 group-hover:border-primary transition-all duration-500">
+                        <span className="text-[7px] sm:text-[9px] font-black uppercase text-primary leading-none mb-0.5 sm:mb-1">{dayName.substring(0, 3)}</span>
+                        <span className="text-sm sm:text-xl font-black text-foreground leading-none tabular-nums tracking-tighter">{dayNumber}</span>
                      </div>
                   </div>
 
                   {/* Proportional Daily Card */}
                   <Card className="glass-card border-border overflow-hidden shadow-2xl hover:border-primary/20 transition-all duration-500 py-0 gap-0">
                     {/* Header: Daily Flow Balance */}
-                    <div className="px-6 py-4 border-b border-border bg-muted/5 flex items-center justify-between">
-                       <div className="flex items-center gap-6">
+                    <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border bg-muted/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6">
+                       <div className="flex items-center gap-4 sm:gap-6">
                           <div className="flex flex-col gap-1">
                              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Fluxo do Dia</span>
-                             <div className="flex items-center gap-4">
-                                <span className="text-sm font-black tabular-nums text-foreground/70">{formatCurrency(day.openingBalance)}</span>
-                                <ArrowRight className="h-3 w-3 text-primary/30" />
-                                <span className="text-sm font-black tabular-nums text-primary">{formatCurrency(day.closingBalance)}</span>
+                             <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
+                                <span className="text-xs sm:text-sm font-black tabular-nums text-foreground/70 truncate">{formatCurrency(day.openingBalance)}</span>
+                                <ArrowRight className="h-3 w-3 text-primary/30 shrink-0" />
+                                <span className="text-xs sm:text-sm font-black tabular-nums text-primary truncate">{formatCurrency(day.closingBalance)}</span>
                              </div>
                           </div>
                        </div>
@@ -238,37 +325,37 @@ export default function ExtratoPage() {
                     {/* Proportional Entries */}
                     <div className="divide-y divide-border/30">
                       {day.transactions.map((transaction) => (
-                        <div key={transaction.id} className="group/row flex items-center justify-between px-6 py-5 hover:bg-muted/5 transition-all">
-                          <div className="flex items-center gap-5">
+                        <div key={transaction.id} className="group/row flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 sm:py-5 hover:bg-muted/5 transition-all gap-4">
+                          <div className="flex items-center gap-4 sm:gap-5 min-w-0">
                             <div className={cn(
-                              "flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg ring-1 transition-all",
+                              "flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl shadow-lg ring-1 transition-all",
                               transaction.type === "income" 
                                 ? "bg-green-500/10 text-green-500 ring-green-500/10" 
                                 : "bg-red-500/10 text-red-500 ring-red-500/10 shadow-red-500/5"
                             )}>
                               {transaction.type === "income" ? (
-                                <ArrowUpRight className="h-6 w-6" />
+                                <ArrowUpRight className="h-5 w-5 sm:h-6 sm:w-6" />
                               ) : (
-                                <ArrowDownRight className="h-6 w-6" />
+                                <ArrowDownRight className="h-5 w-5 sm:h-6 sm:w-6" />
                               )}
                             </div>
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-lg font-black text-foreground uppercase tracking-tight group-hover/row:text-primary transition-colors">{transaction.description}</span>
-                              <div className="flex items-center gap-2">
-                                 <div className="h-1 w-1 rounded-full" style={{ backgroundColor: transaction.type === 'income' ? '#22c55e' : '#ef4444' }} />
-                                 <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-[0.15em]">{transaction.category}</span>
+                            <div className="flex flex-col gap-0.5 min-w-0">
+                              <span className="text-base sm:text-lg font-black text-foreground uppercase tracking-tight group-hover/row:text-primary transition-colors truncate">{transaction.description}</span>
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                 <div className="h-1 w-1 rounded-full shrink-0" style={{ backgroundColor: transaction.type === 'income' ? '#22c55e' : '#ef4444' }} />
+                                 <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground/50 uppercase tracking-[0.15em] truncate">{transaction.category}</span>
                               </div>
                             </div>
                           </div>
                           
-                          <div className="flex flex-col items-end min-w-[140px]">
+                          <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-end sm:min-w-[140px] border-t sm:border-t-0 border-border/30 pt-3 sm:pt-0">
                              <span className={cn(
-                                "text-2xl font-black tabular-nums tracking-tighter leading-none",
+                                "text-xl sm:text-2xl font-black tabular-nums tracking-tighter leading-none",
                                 transaction.type === "income" ? "text-emerald-600 dark:text-emerald-500" : "text-red-600 dark:text-red-500"
                              )}>
                                 {transaction.type === "income" ? "+" : "-"}{formatCurrency(transaction.amount)}
                              </span>
-                             <span className="text-[9px] font-black text-muted-foreground/20 uppercase tracking-widest mt-2">Movimentação Confirmada</span>
+                             <span className="text-[8px] sm:text-[9px] font-black text-muted-foreground/20 uppercase tracking-widest sm:mt-2">Confirmada</span>
                           </div>
                         </div>
                       ))}

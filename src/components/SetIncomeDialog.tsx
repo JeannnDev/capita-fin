@@ -13,9 +13,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Settings, Wallet, Zap } from "lucide-react";
-import { upsertIncome } from "@/actions/finance";
+import { Settings, Wallet, Zap, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { useFinance } from "@/lib/finance-context";
 
 import {
     Select,
@@ -31,6 +31,7 @@ interface SetIncomeDialogProps {
 }
 
 export function SetIncomeDialog({ isGuest, children }: SetIncomeDialogProps) {
+    const { accounts, addTransaction } = useFinance();
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [tipo, setTipo] = useState("Salário");
@@ -39,26 +40,33 @@ export function SetIncomeDialog({ isGuest, children }: SetIncomeDialogProps) {
         if (isGuest) return;
         setLoading(true);
         const valor = parseFloat(formData.get("valor") as string);
-        const selectedTipo = tipo;
-        const date = new Date();
-        const month = date.getMonth() + 1;
-        const year = date.getFullYear();
-
-        if (isNaN(valor)) {
+        const accountId = formData.get("accountId") as string;
+        
+        if (isNaN(valor) || !accountId) {
             setLoading(false);
             return;
         }
 
         try {
-            await upsertIncome(valor, month, year, selectedTipo);
+            await addTransaction({
+                id: crypto.randomUUID(),
+                description: tipo,
+                amount: valor,
+                type: "income",
+                category: "Renda",
+                accountId: accountId,
+                date: new Date().toISOString().split('T')[0],
+                isPaid: true
+            });
             setOpen(false);
-            window.location.reload();
         } catch (e) {
             console.error(e);
         } finally {
             setLoading(false);
         }
     }
+
+    const hasNoAccounts = accounts.length === 0;
 
     if (isGuest) {
         return (
@@ -98,6 +106,44 @@ export function SetIncomeDialog({ isGuest, children }: SetIncomeDialogProps) {
         );
     }
 
+    if (hasNoAccounts) {
+        return (
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                    {children || (
+                        <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl bg-muted/30 border border-muted hover:bg-muted/50 transition-all hover:scale-105 active:scale-95 group">
+                            <Settings className="h-6 w-6 text-muted-foreground group-hover:text-orange-500 transition-colors" />
+                        </Button>
+                    )}
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[440px] rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden bg-background">
+                    <div className="h-2 bg-red-500 w-full" />
+                    <div className="p-10 space-y-8">
+                        <DialogHeader className="items-center text-center space-y-6">
+                            <div className="w-24 h-24 rounded-[2rem] bg-red-500/10 flex items-center justify-center rotate-12">
+                                <AlertCircle className="h-10 w-10 text-red-500" />
+                            </div>
+                            <div className="space-y-2">
+                                <DialogTitle className="text-4xl font-black tracking-tighter text-red-600">Ops!</DialogTitle>
+                                <DialogDescription className="text-lg font-medium leading-relaxed opacity-70">
+                                    Você precisa cadastrar uma **conta ou banco** para depositar sua renda.
+                                </DialogDescription>
+                            </div>
+                        </DialogHeader>
+                        <div className="flex flex-col gap-4 pt-4">
+                            <Button asChild className="h-16 rounded-3xl font-black text-xl shadow-xl shadow-red-500/20 bg-red-600 hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-[0.98] text-white">
+                                <Link href="/contas">Cadastrar Conta</Link>
+                            </Button>
+                            <Button variant="ghost" onClick={() => setOpen(false)} className="h-14 rounded-2xl font-black text-muted-foreground uppercase tracking-widest text-[10px] hover:text-red-500 transition-colors">
+                                Agora não
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -118,11 +164,30 @@ export function SetIncomeDialog({ isGuest, children }: SetIncomeDialogProps) {
                             <DialogTitle className="text-3xl font-black tracking-tighter text-orange-600">Configurar Renda</DialogTitle>
                         </div>
                         <DialogDescription className="text-base font-medium opacity-60">
-                            Defina seus ganhos mensais por tipo para automatizar a regra 50-25-15-10.
+                            Defina seus ganhos mensais e escolha onde o dinheiro será depositado.
                         </DialogDescription>
                     </DialogHeader>
                     <form action={handleSubmit} className="space-y-6">
                         <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="accountId" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Conta de Destino</Label>
+                                <Select name="accountId" required>
+                                    <SelectTrigger className="h-14 rounded-2xl bg-muted/30 border-none focus:ring-orange-500/20 font-bold text-lg">
+                                        <SelectValue placeholder="Onde cai o dinheiro?" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-2xl border-none shadow-2xl p-2 bg-background/95 backdrop-blur-xl">
+                                        {accounts.map((acc) => (
+                                            <SelectItem key={acc.id} value={acc.id} className="rounded-xl font-bold py-3 px-4 focus:bg-orange-600 focus:text-white transition-colors cursor-pointer mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: acc.color }} />
+                                                    {acc.name}
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
                             <div className="space-y-2">
                                 <Label htmlFor="tipo" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Tipo de Renda</Label>
                                 <Select value={tipo} onValueChange={setTipo}>
@@ -154,20 +219,11 @@ export function SetIncomeDialog({ isGuest, children }: SetIncomeDialogProps) {
                                     autoFocus
                                 />
                             </div>
-                            <p className="text-[10px] text-muted-foreground opacity-60 font-medium italic mt-2 ml-2">
-                                * Seus percentuais serão recalculados considerando a soma de todas as rendas.
-                            </p>
                         </div>
 
                         <DialogFooter className="pt-2">
                             <Button type="submit" className="w-full h-18 rounded-[2rem] font-black text-xl shadow-2xl shadow-orange-500/20 bg-orange-600 hover:bg-orange-700 transition-all hover:scale-[1.02] active:scale-[0.98] text-white" disabled={loading}>
-                                {loading ? (
-                                    <div className="flex items-center space-x-2">
-                                        <div className="h-2.5 w-2.5 bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                        <div className="h-2.5 w-2.5 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                        <div className="h-2.5 w-2.5 bg-white rounded-full animate-bounce" />
-                                    </div>
-                                ) : "Salvar Renda"}
+                                {loading ? "Processando..." : "Salvar Renda"}
                             </Button>
                         </DialogFooter>
                     </form>
