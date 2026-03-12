@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -17,6 +17,7 @@ import {
   LogOut,
   Camera,
   Loader2,
+  LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { authClient } from "@/lib/auth-client"
@@ -44,13 +45,12 @@ function NavItem({
   isActive,
   onClose,
 }: {
-  item: typeof navigation[0]
+  item: { name: string; href: string; icon: LucideIcon; id: string }
   isActive: boolean
   onClose: () => void
 }) {
   return (
     <Link
-      key={item.name}
       id={item.id}
       href={item.href}
       onClick={onClose}
@@ -90,9 +90,14 @@ function NavItem({
 export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const { data: session } = authClient.useSession()
   const user = session?.user
   const [isUploading, setIsUploading] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleSignOut = async () => {
     await authClient.signOut({
@@ -125,6 +130,7 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
         alert(data.error || "Erro no upload")
       }
     } catch (error) {
+      console.error(error)
       alert("Erro ao enviar arquivo")
     } finally {
       setIsUploading(false)
@@ -221,8 +227,8 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
                 onClose={onClose}
              />
 
-             {/* User Profile Card */}
-             {user && (
+             {/* User Profile Card - Only render after mounting to avoid hydration mismatch */}
+             {mounted && user && (
                 <div className="relative group p-2 rounded-2xl bg-muted/20 border border-white/5 shadow-inner">
                    <div className="flex items-center gap-3">
                       {/* Avatar with Upload */}
@@ -239,7 +245,7 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
 
                          <div className="flex h-full w-full items-center justify-center rounded-xl premium-gradient text-white font-black text-sm shadow-md ring-2 ring-violet-500/20">
                             {user.image ? (
-                               <img src={user.image} alt={user.name} className="h-full w-full object-cover rounded-xl" />
+                               <img src={user.image} alt={user.name || "User"} className="h-full w-full object-cover rounded-xl" />
                             ) : (
                                <span>{user.name?.charAt(0).toUpperCase()}</span>
                             )}
