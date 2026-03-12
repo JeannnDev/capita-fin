@@ -5,7 +5,7 @@ import { uploads, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 
 export async function POST(req: NextRequest) {
     try {
@@ -67,8 +67,9 @@ export async function POST(req: NextRequest) {
             uploadId: newUpload.id
         });
 
-    } catch (error: any) {
+    } catch (error) {
         console.error("Upload error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        const errorMessage = error instanceof Error ? error.message : "Erro interno no servidor";
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }

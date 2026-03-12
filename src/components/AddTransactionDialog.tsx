@@ -20,56 +20,55 @@ import {
     SelectValue
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Sparkles, Receipt, Type, AlertCircle } from "lucide-react";
-import { addTransaction, getFinancialSummary } from "@/actions/finance";
+import { Plus, Sparkles, Receipt, Type, AlertCircle, Wallet } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
-import { AddCategoryDialog } from "./AddCategoryDialog";
+import { useFinance } from "@/lib/finance-context";
+import { cn } from "@/lib/utils";
 
 interface AddTransactionDialogProps {
-    categories?: { id: string; nome: string }[];
     isGuest?: boolean;
     children?: React.ReactNode;
 }
 
-export function AddTransactionDialog({ categories: initialCategories, isGuest, children }: AddTransactionDialogProps) {
+export function AddTransactionDialog({ isGuest, children }: AddTransactionDialogProps) {
+    const { accounts, categories, addTransaction } = useFinance();
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [categories, setCategories] = useState<{id: string, nome: string}[]>(initialCategories || []);
-
-    useEffect(() => {
-        if (!initialCategories || initialCategories.length === 0) {
-            const fetchCats = async () => {
-                const data = await getFinancialSummary(new Date().getMonth() + 1, new Date().getFullYear());
-                setCategories(data.summary.map((s) => ({ id: s.id, nome: s.nome })));
-            };
-            fetchCats();
-        }
-    }, [initialCategories]);
 
     async function handleSubmit(formData: FormData) {
         if (isGuest) return;
         setLoading(true);
 
         const categoryId = formData.get("categoryId") as string;
+        const accountId = formData.get("accountId") as string;
         const valor = parseFloat(formData.get("valor") as string);
         const descricao = formData.get("descricao") as string;
 
-        if (!categoryId || isNaN(valor)) {
+        if (!categoryId || !accountId || isNaN(valor)) {
             setLoading(false);
             return;
         }
 
         try {
-            await addTransaction(categoryId, valor, descricao);
+            await addTransaction({
+                id: crypto.randomUUID(),
+                description: descricao,
+                amount: valor,
+                type: "expense",
+                category: categories.find(c => c.id === categoryId)?.name || "Geral",
+                accountId: accountId,
+                date: new Date().toISOString().split('T')[0],
+                isPaid: true
+            });
             setOpen(false);
-            window.location.reload();
         } catch (e) {
             console.error(e);
         } finally {
             setLoading(false);
         }
     }
+
+    const hasNoAccounts = accounts.length === 0;
 
     if (isGuest) {
         return (
@@ -109,6 +108,44 @@ export function AddTransactionDialog({ categories: initialCategories, isGuest, c
         );
     }
 
+    if (hasNoAccounts) {
+        return (
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                    {children || (
+                        <Button variant="default" className="rounded-[1.5rem] h-14 px-8 shadow-2xl shadow-orange-500/40 hover:shadow-orange-500/60 transition-all hover:scale-105 active:scale-95 bg-orange-600 text-white font-black uppercase tracking-widest text-xs">
+                            <Plus className="mr-2 h-5 w-5" /> Registrar Gasto
+                        </Button>
+                    )}
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[440px] rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden bg-background">
+                    <div className="h-2 bg-red-500 w-full" />
+                    <div className="p-10 space-y-8">
+                        <DialogHeader className="items-center text-center space-y-6">
+                            <div className="w-24 h-24 rounded-[2rem] bg-red-500/10 flex items-center justify-center rotate-12">
+                                <Wallet className="h-10 w-10 text-red-500" />
+                            </div>
+                            <div className="space-y-2">
+                                <DialogTitle className="text-4xl font-black tracking-tighter text-red-600">Ops!</DialogTitle>
+                                <DialogDescription className="text-lg font-medium leading-relaxed opacity-70">
+                                    Você precisa cadastrar pelo menos uma **conta ou banco** antes de registrar uma transação.
+                                </DialogDescription>
+                            </div>
+                        </DialogHeader>
+                        <div className="flex flex-col gap-4 pt-4">
+                            <Button asChild className="h-16 rounded-3xl font-black text-xl shadow-xl shadow-red-500/20 bg-red-600 hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-[0.98] text-white">
+                                <Link href="/contas">Cadastrar Minha Primeira Conta</Link>
+                            </Button>
+                            <Button variant="ghost" onClick={() => setOpen(false)} className="h-14 rounded-2xl font-black text-muted-foreground uppercase tracking-widest text-[10px] hover:text-red-500 transition-colors">
+                                Agora não
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -129,12 +166,12 @@ export function AddTransactionDialog({ categories: initialCategories, isGuest, c
                             <DialogTitle className="text-3xl font-black tracking-tighter text-orange-600">Novo Gasto</DialogTitle>
                         </div>
                         <DialogDescription className="text-base font-medium opacity-60">
-                            Registre uma saída para calcular seu saldo livre.
+                            Registre uma saída de uma de suas contas.
                         </DialogDescription>
                     </DialogHeader>
                     <form action={handleSubmit} className="space-y-8">
                         <div className="space-y-6">
-                            {/* Amount Input - Nubank Style big display */}
+                            {/* Amount Input */}
                             <div className="space-y-2">
                                 <Label htmlFor="valor" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Valor do Gasto</Label>
                                 <div className="relative group">
@@ -153,30 +190,41 @@ export function AddTransactionDialog({ categories: initialCategories, isGuest, c
                             </div>
 
                             <div className="grid grid-cols-1 gap-6">
+                                {/* Account Selection */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="accountId" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Conta de Origem</Label>
+                                    <Select name="accountId" required>
+                                        <SelectTrigger className="h-14 rounded-2xl border-none bg-muted/30 font-bold px-6 focus:ring-orange-500/20">
+                                            <SelectValue placeholder="Selecione a conta" />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-2xl border-none shadow-2xl p-2 bg-background/95 backdrop-blur-xl">
+                                            {accounts.map((acc) => (
+                                                <SelectItem key={acc.id} value={acc.id} className="rounded-xl font-bold py-3 px-4 focus:bg-orange-600 focus:text-white transition-colors cursor-pointer mb-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: acc.color }} />
+                                                        {acc.name}
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Category Selection */}
                                 <div className="space-y-2">
                                     <Label htmlFor="categoryId" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Categoria</Label>
-                                    {categories.length > 0 ? (
-                                        <Select name="categoryId" required>
-                                            <SelectTrigger className="h-14 rounded-2xl border-none bg-muted/30 font-bold px-6 focus:ring-orange-500/20">
-                                                <SelectValue placeholder="Onde foi?" />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-2xl border-none shadow-2xl p-2 bg-background/95 backdrop-blur-xl">
-                                                {categories.map((c) => (
-                                                    <SelectItem key={c.id} value={c.id} className="rounded-xl font-bold py-3 px-4 focus:bg-orange-600 focus:text-white transition-colors cursor-pointer mb-1">
-                                                        {c.nome}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-orange-200 dark:border-orange-800 rounded-2xl bg-orange-50/50 dark:bg-orange-900/10 space-y-4">
-                                            <div className="flex items-center space-x-2 text-orange-600">
-                                                <AlertCircle className="h-5 w-5" />
-                                                <span className="font-bold text-sm">Nenhuma categoria encontrada</span>
-                                            </div>
-                                            <AddCategoryDialog />
-                                        </div>
-                                    )}
+                                    <Select name="categoryId" required>
+                                        <SelectTrigger className="h-14 rounded-2xl border-none bg-muted/30 font-bold px-6 focus:ring-orange-500/20">
+                                            <SelectValue placeholder="Onde foi?" />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-2xl border-none shadow-2xl p-2 bg-background/95 backdrop-blur-xl">
+                                            {categories.map((c) => (
+                                                <SelectItem key={c.id} value={c.id} className="rounded-xl font-bold py-3 px-4 focus:bg-orange-600 focus:text-white transition-colors cursor-pointer mb-1">
+                                                    {c.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
 
                                 <div className="space-y-2">
@@ -193,15 +241,9 @@ export function AddTransactionDialog({ categories: initialCategories, isGuest, c
                             <Button
                                 type="submit"
                                 className="w-full h-18 rounded-[2rem] font-black text-xl shadow-2xl shadow-orange-500/20 bg-orange-600 hover:bg-orange-700 transition-all hover:scale-[1.02] active:scale-[0.98] text-white"
-                                disabled={loading || categories.length === 0}
+                                disabled={loading}
                             >
-                                {loading ? (
-                                    <div className="flex items-center space-x-2">
-                                        <div className="h-2 w-2 bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                        <div className="h-2 w-2 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                        <div className="h-2 w-2 bg-white rounded-full animate-bounce" />
-                                    </div>
-                                ) : "Confirmar Gasto"}
+                                {loading ? "Processando..." : "Confirmar Gasto"}
                             </Button>
                         </DialogFooter>
                     </form>

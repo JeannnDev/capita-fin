@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { Plus, ArrowUpRight, ArrowDownLeft, Filter, Search } from "lucide-react"
+import { Plus, ArrowUpRight, ArrowDownLeft, Filter, Search, Wallet } from "lucide-react"
 import { AppShell } from "@/components/AppShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,6 +31,7 @@ import { formatCurrency, formatFullDate } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { PremiumBalanceCard } from "@/components/ui/premium-balance-card"
 import type { Transaction } from "@/lib/types"
+import Link from "next/link"
 
 export default function TransacoesPage() {
   const { transactions, addTransaction, deleteTransaction, accounts, categories, getTotalIncome, getTotalExpenses } = useFinance()
@@ -70,8 +71,8 @@ export default function TransacoesPage() {
   const filteredTransactions = transactions
     .filter((t) => filter === "all" || t.type === filter)
     .filter((t) =>
-      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.category.toLowerCase().includes(searchTerm.toLowerCase())
+      (t.description?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (t.category?.toLowerCase() || "").includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
@@ -145,9 +146,32 @@ export default function TransacoesPage() {
               </DialogTrigger>
               <DialogContent className="rounded-[2.5rem] border-white/10 bg-background/80 backdrop-blur-2xl shadow-2xl p-6 sm:p-10">
                 <DialogHeader>
-                  <DialogTitle className="text-xl sm:text-2xl font-black tracking-tight">Novo Lançamento</DialogTitle>
+                  <DialogTitle className="text-xl sm:text-2xl font-black tracking-tight">
+                    {accounts.length === 0 ? "Ops!" : "Novo Lançamento"}
+                  </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 mt-4">
+
+                {accounts.length === 0 ? (
+                  <div className="py-6 sm:py-10 flex flex-col items-center text-center space-y-6">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[2rem] bg-red-500/10 flex items-center justify-center rotate-12">
+                      <Wallet className="h-10 w-10 text-red-500" />
+                    </div>
+                    <div className="space-y-2">
+                       <p className="text-lg font-medium leading-relaxed opacity-70">
+                        Você precisa cadastrar pelo menos uma **conta ou banco** antes de registrar uma transação.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-3 w-full pt-4">
+                      <Button asChild className="h-14 sm:h-16 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-red-500/20 bg-red-600 hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-[0.98] text-white">
+                        <Link href="/contas">Cadastrar Minha Primeira Conta</Link>
+                      </Button>
+                      <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="h-12 rounded-xl font-black text-muted-foreground uppercase tracking-widest text-[10px] hover:text-red-500 transition-colors">
+                        Agora não
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 mt-4">
                   <div className="flex p-1 bg-muted/20 rounded-2xl gap-1">
                     <Button type="button" variant={formData.type === "expense" ? "default" : "ghost"} className={cn("flex-1 rounded-xl font-bold transition-all", formData.type === "expense" && "shadow-lg bg-red-500 text-white")} onClick={() => setFormData({ ...formData, type: "expense", category: "" })}>Despesa</Button>
                     <Button type="button" variant={formData.type === "income" ? "default" : "ghost"} className={cn("flex-1 rounded-xl font-bold transition-all", formData.type === "income" && "shadow-lg bg-green-500 text-white")} onClick={() => setFormData({ ...formData, type: "income", category: "" })}>Receita</Button>
@@ -188,6 +212,7 @@ export default function TransacoesPage() {
                   </div>
                   <Button type="submit" className="w-full h-14 sm:h-16 rounded-2xl text-base font-black tracking-tight shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 transition-all active:scale-[0.98] text-white">Confirmar Operação</Button>
                 </form>
+                )}
               </DialogContent>
             </Dialog>
           </div>
