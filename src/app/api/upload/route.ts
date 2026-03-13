@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Definir caminhos
-        const uploadDir = join(process.cwd(), "public", "uploads", "profile-pics");
+        // Definir caminhos — salva na pasta /uploads na raiz do projeto
+        const uploadDir = join(process.cwd(), "uploads", "profile-pics");
 
         // Garantir que a pasta existe
         try {
@@ -37,7 +37,9 @@ export async function POST(req: NextRequest) {
         const fileExt = file.name.split(".").pop();
         const fileName = `${randomUUID()}.${fileExt}`;
         const filePath = join(uploadDir, fileName);
-        const publicPath = `/uploads/profile-pics/${fileName}`;
+
+        // URL pública — servida pela API route /api/uploads/[...path]
+        const publicPath = `/api/uploads/profile-pics/${fileName}`;
 
         // Salvar no disco
         await writeFile(filePath, buffer);
