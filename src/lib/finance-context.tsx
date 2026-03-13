@@ -5,6 +5,13 @@ import type { Account, Transaction, Reminder, Budget, Category, Goal, GoalContri
 import { authClient } from "./auth-client"
 import { useRouter } from "next/navigation"
 
+// ─── Server Actions ──────────────────────────────────────────
+import { getFinanceData } from "@/actions/finance/get-finance-data"
+import { createAccount, updateAccount as updateAccountAction, deleteAccount as deleteAccountAction } from "@/actions/accounts/accounts"
+import { createTransaction, updateTransaction as updateTransactionAction, deleteTransaction as deleteTransactionAction } from "@/actions/transactions/transactions"
+import { createCategory } from "@/actions/categories/categories"
+
+// ─── Context Types ────────────────────────────────────────────
 interface FinanceContextType {
   accounts: Account[]
   transactions: Transaction[]
@@ -35,6 +42,7 @@ interface FinanceContextType {
   getTotalExpenses: (month?: number, year?: number, accountId?: string) => number
   getStartingBalance: (month: number, year: number, accountId?: string) => number
   getMonthBalance: (month: number, year: number, accountId?: string) => number
+  refetchAll: () => Promise<void>
   isLoading: boolean
   isSidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
@@ -54,45 +62,50 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSidebarOpen, setSidebarOpen] = useState(false)
 
-  useEffect(() => {
-    async function fetchData() {
-      if (!session) {
-        setIsLoading(false)
-        return
-      }
+  // ─── Helper: atualiza todo o estado com os dados do server ─────
+  const applyFinanceData = (data: Awaited<ReturnType<typeof getFinanceData>>) => {
+    setAccounts(data.accounts as Account[])
+    setTransactions(data.transactions as Transaction[])
+    setReminders(data.reminders as Reminder[])
+    setBudgets(data.budgets as Budget[])
+    setCategories(data.categories as Category[])
+    setGoals(data.goals as unknown as Goal[])
+  }
 
-      try {
-        const res = await fetch("/api/finance")
-        if (res.ok) {
-          const data = await res.json()
-          setAccounts(data.accounts || [])
-          setTransactions(data.transactions || [])
-          setReminders(data.reminders || [])
-          setBudgets(data.budgets || [])
-          setCategories(data.categories || [])
-          setGoals(data.goals || [])
-        }
-      } catch (error) {
-        console.error("Failed to fetch finance data:", error)
-      } finally {
-        setIsLoading(false)
-      }
+  const refetchAll = async () => {
+    try {
+      const data = await getFinanceData()
+      applyFinanceData(data)
+    } catch (error) {
+      console.error("Failed to refetch finance data:", error)
     }
+  }
 
-    fetchData()
+  // ─── Carga Inicial ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!session) {
+      setIsLoading(false)
+      return
+    }
+    setIsLoading(true)
+    getFinanceData()
+      .then(applyFinanceData)
+      .catch(err => console.error("Failed to fetch finance data:", err))
+      .finally(() => setIsLoading(false))
   }, [session])
 
+  // ─── Accounts ─────────────────────────────────────────────────
   const addAccount = async (account: Account) => {
     try {
-      const res = await fetch("/api/accounts", {
-        method: "POST",
-        body: JSON.stringify(account),
+      const newAccount = await createAccount({
+        name: account.name,
+        balance: account.balance,
+        type: account.type,
+        color: account.color,
+        institution: account.institution,
       })
-      if (res.ok) {
-        const newAccount = await res.json()
-        setAccounts((prev) => [...prev, newAccount])
-        router.refresh()
-      }
+      setAccounts(prev => [...prev, newAccount as Account])
+      router.refresh()
     } catch (error) {
       console.error("Failed to add account:", error)
     }
@@ -100,316 +113,220 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   const updateAccount = async (id: string, updates: Partial<Account>) => {
     try {
-      const res = await fetch("/api/accounts", {
-        method: "PATCH",
-        body: JSON.stringify({ id, ...updates }),
-      })
-      if (res.ok) {
-        setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, ...updates } : a)))
-      }
+      const updated = await updateAccountAction(id, updates)
+      setAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updated } : a))
     } catch (error) {
       console.error("Failed to update account:", error)
     }
   }
 
-  const deleteAccount = (id: string) => {
-    setAccounts((prev) => prev.filter((a) => a.id !== id))
+  const deleteAccount = async (id: string) => {
+    try {
+      await deleteAccountAction(id)
+      setAccounts(prev => prev.filter(a => a.id !== id))
+    } catch (error) {
+      console.error("Failed to delete account:", error)
+    }
   }
 
+  // ─── Transactions ──────────────────────────────────────────────
   const addTransaction = async (transaction: Transaction) => {
     try {
-      const res = await fetch("/api/transactions", {
-        method: "POST",
-        body: JSON.stringify(transaction),
+      const saved = await createTransaction({
+        accountId:   transaction.accountId,
+        categoryId:  undefined,
+        category:    transaction.category,
+        amount:      transaction.amount,
+        description: transaction.description,
+        type:        transaction.type,
+        date:        transaction.date,
+        isPaid:      transaction.isPaid,
       })
-      if (res.ok) {
-        const saved = await res.json()
-        setTransactions((prev) => [saved, ...prev])
-        
-        // Re-fetch to ensure everything is synced (balances, etc)
-        const financeRes = await fetch("/api/finance")
-        if (financeRes.ok) {
-          const data = await financeRes.json()
-          setAccounts(data.accounts)
-          setTransactions(data.transactions)
-        }
-      }
+      setTransactions(prev => [saved as Transaction, ...prev])
+      // Re-sincroniza tudo (saldos, orçamentos, etc.)
+      await refetchAll()
     } catch (error) {
       console.error("Failed to add transaction:", error)
     }
   }
 
   const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
-    const old = transactions.find((t) => t.id === id)
+    const old = transactions.find(t => t.id === id)
     if (!old) return
-
-    setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)))
-
+    // Optimistic update
+    setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
     try {
-      const res = await fetch("/api/transactions", {
-        method: "PATCH",
-        body: JSON.stringify({ id, ...updates }),
+      await updateTransactionAction(id, {
+        description: updates.description,
+        amount:      updates.amount,
+        type:        updates.type,
+        categoryId:  undefined,
+        accountId:   updates.accountId,
+        date:        updates.date,
+        isPaid:      updates.isPaid,
       })
-
-      if (res.ok) {
-        // Re-fetch to ensure everything is synced (balances, budgets, etc)
-        const financeRes = await fetch("/api/finance")
-        if (financeRes.ok) {
-          const data = await financeRes.json()
-          setAccounts(data.accounts)
-          setTransactions(data.transactions)
-          setBudgets(data.budgets)
-        }
-        router.refresh()
-      } else {
-        // Rollback state on error
-        const financeRes = await fetch("/api/finance")
-        if (financeRes.ok) {
-          const data = await financeRes.json()
-          setAccounts(data.accounts)
-          setTransactions(data.transactions)
-        }
-      }
+      await refetchAll()
+      router.refresh()
     } catch (error) {
       console.error("Failed to update transaction:", error)
+      // Rollback
+      await refetchAll()
     }
   }
 
   const deleteTransaction = async (id: string) => {
-    const transaction = transactions.find((t) => t.id === id)
+    const transaction = transactions.find(t => t.id === id)
     if (!transaction) return
-
-    setTransactions((prev) => prev.filter((t) => t.id !== id))
-
+    // Optimistic update
+    setTransactions(prev => prev.filter(t => t.id !== id))
     try {
-      const res = await fetch(`/api/transactions?id=${id}`, {
-        method: "DELETE"
-      })
-
-      if (res.ok) {
-        // Re-fetch to ensure everything is synced
-        const financeRes = await fetch("/api/finance")
-        if (financeRes.ok) {
-          const data = await financeRes.json()
-          setAccounts(data.accounts)
-          setTransactions(data.transactions)
-          setBudgets(data.budgets)
-        }
-        router.refresh()
-      } else {
-        // Rollback
-        const financeRes = await fetch("/api/finance")
-        if (financeRes.ok) {
-          const data = await financeRes.json()
-          setAccounts(data.accounts)
-          setTransactions(data.transactions)
-        }
-      }
+      await deleteTransactionAction(id)
+      await refetchAll()
+      router.refresh()
     } catch (error) {
       console.error("Failed to delete transaction:", error)
+      await refetchAll()
     }
   }
 
+  // ─── Reminders (client-side only por enquanto) ─────────────────
   const addReminder = (reminder: Reminder) => {
-    setReminders((prev) => [...prev, reminder])
+    setReminders(prev => [...prev, reminder])
   }
 
   const updateReminder = (id: string, reminder: Partial<Reminder>) => {
-    setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, ...reminder } : r)))
+    setReminders(prev => prev.map(r => r.id === id ? { ...r, ...reminder } : r))
   }
 
   const deleteReminder = (id: string) => {
-    setReminders((prev) => prev.filter((r) => r.id !== id))
+    setReminders(prev => prev.filter(r => r.id !== id))
   }
 
   const markReminderPaid = (id: string) => {
-    const reminder = reminders.find((r) => r.id === id)
+    const reminder = reminders.find(r => r.id === id)
     if (!reminder || reminder.isPaid) return
-
-    setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, isPaid: true } : r)))
-
-    // Automatically create a transaction if an account is linked
+    setReminders(prev => prev.map(r => r.id === id ? { ...r, isPaid: true } : r))
     if (reminder.accountId) {
       addTransaction({
-        id: crypto.randomUUID(),
+        id:          crypto.randomUUID(),
         description: `Pagamento: ${reminder.title}`,
-        amount: reminder.amount,
-        type: "expense",
-        category: reminder.category,
-        accountId: reminder.accountId,
-        date: new Date().toISOString().split("T")[0],
-        isPaid: true,
+        amount:      reminder.amount,
+        type:        "expense",
+        category:    reminder.category,
+        accountId:   reminder.accountId,
+        date:        new Date().toISOString().split("T")[0],
+        isPaid:      true,
       })
     }
   }
 
+  // ─── Budgets (client-side only por enquanto) ───────────────────
   const updateBudget = (id: string, budget: Partial<Budget>) => {
-    setBudgets((prev) => prev.map((b) => (b.id === id ? { ...b, ...budget } : b)))
+    setBudgets(prev => prev.map(b => b.id === id ? { ...b, ...budget } : b))
   }
-
   const addBudget = (budget: Budget) => {
-    setBudgets((prev) => [...prev, budget])
+    setBudgets(prev => [...prev, budget])
   }
-
   const deleteBudget = (id: string) => {
-    setBudgets((prev) => prev.filter((b) => b.id !== id))
+    setBudgets(prev => prev.filter(b => b.id !== id))
   }
 
+  // ─── Categories ────────────────────────────────────────────────
   const addCategory = async (cat: { nome: string; icon: string; color: string; type: string }) => {
     try {
-      const res = await fetch("/api/categories", {
-        method: "POST",
-        body: JSON.stringify(cat),
+      const newCat = await createCategory(cat)
+      setCategories(prev => {
+        const exists = prev.find(c => c.id === newCat.id)
+        if (exists) return prev
+        return [...prev, newCat as Category]
       })
-      if (res.ok) {
-        const newCat = await res.json()
-        setCategories((prev) => {
-          const exists = prev.find(c => c.id === newCat.id)
-          if (exists) return prev
-          return [...prev, {
-            id: newCat.id,
-            name: newCat.nome,
-            icon: newCat.icon,
-            color: newCat.color,
-            type: newCat.type
-          }]
-        })
-        return {
-          id: newCat.id,
-          name: newCat.nome,
-          icon: newCat.icon,
-          color: newCat.color,
-          type: newCat.type
-        } as Category
-      }
+      return newCat as Category
     } catch (error) {
       console.error("Failed to add category:", error)
     }
   }
 
+  // ─── Goals (client-side only por enquanto) ─────────────────────
   const addGoal = (goal: Goal) => {
-    setGoals((prev) => [...prev, goal])
+    setGoals(prev => [...prev, goal])
   }
-
   const updateGoal = (id: string, goal: Partial<Goal>) => {
-    setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...goal } : g)))
+    setGoals(prev => prev.map(g => g.id === id ? { ...g, ...goal } : g))
   }
-
   const deleteGoal = (id: string) => {
-    setGoals((prev) => prev.filter((g) => g.id !== id))
+    setGoals(prev => prev.filter(g => g.id !== id))
   }
-
   const addContribution = (goalId: string, contribution: GoalContribution) => {
     if (contribution.accountId) {
-      const account = accounts.find((a) => a.id === contribution.accountId)
-      if (account) {
-        updateAccount(account.id, { balance: account.balance - contribution.amount })
-      }
+      const account = accounts.find(a => a.id === contribution.accountId)
+      if (account) updateAccount(account.id, { balance: account.balance - contribution.amount })
     }
-
-    setGoals((prev) =>
-      prev.map((g) => {
-        if (g.id === goalId) {
-          return {
-            ...g,
-            currentAmount: g.currentAmount + contribution.amount,
-            contributions: [...g.contributions, contribution],
-          }
-        }
-        return g
-      })
+    setGoals(prev =>
+      prev.map(g => g.id === goalId
+        ? { ...g, currentAmount: g.currentAmount + contribution.amount, contributions: [...g.contributions, contribution] }
+        : g
+      )
     )
   }
 
+  // ─── Computed Helpers ──────────────────────────────────────────
   const getStartingBalance = (month: number, year: number, accountId?: string) => {
     const targetDate = new Date(year, month, 1)
-    
     return transactions
-      .filter((t) => {
-        const transDate = new Date(t.date)
-        const matchesAccount = !accountId || t.accountId === accountId
-        return transDate < targetDate && matchesAccount
+      .filter(t => {
+        const d = new Date(t.date)
+        return d < targetDate && (!accountId || t.accountId === accountId)
       })
-      .reduce((sum, t) => {
-        return t.type === "income" ? sum + t.amount : sum - t.amount
-      }, 0)
+      .reduce((sum, t) => t.type === "income" ? sum + t.amount : sum - t.amount, 0)
   }
 
   const getTotalBalance = (accountId?: string) => {
-    if (accountId) {
-      return accounts.find(a => a.id === accountId)?.balance || 0
-    }
-    return accounts.reduce((sum, account) => sum + account.balance, 0)
+    if (accountId) return accounts.find(a => a.id === accountId)?.balance || 0
+    return accounts.reduce((sum, a) => sum + a.balance, 0)
   }
 
   const getTotalIncome = (month?: number, year?: number, accountId?: string) => {
-    const targetMonth = month ?? new Date().getMonth()
-    const targetYear = year ?? new Date().getFullYear()
+    const m = month ?? new Date().getMonth()
+    const y = year ?? new Date().getFullYear()
     return transactions
-      .filter((t) => {
+      .filter(t => {
         const d = new Date(t.date)
-        const matchesAccount = !accountId || t.accountId === accountId
-        return t.type === "income" && d.getMonth() === targetMonth && d.getFullYear() === targetYear && matchesAccount
+        return t.type === "income" && d.getMonth() === m && d.getFullYear() === y && (!accountId || t.accountId === accountId)
       })
       .reduce((sum, t) => sum + t.amount, 0)
   }
 
   const getTotalExpenses = (month?: number, year?: number, accountId?: string) => {
-    const targetMonth = month ?? new Date().getMonth()
-    const targetYear = year ?? new Date().getFullYear()
+    const m = month ?? new Date().getMonth()
+    const y = year ?? new Date().getFullYear()
     return transactions
-      .filter((t) => {
+      .filter(t => {
         const d = new Date(t.date)
-        const matchesAccount = !accountId || t.accountId === accountId
-        return t.type === "expense" && d.getMonth() === targetMonth && d.getFullYear() === targetYear && matchesAccount
+        return t.type === "expense" && d.getMonth() === m && d.getFullYear() === y && (!accountId || t.accountId === accountId)
       })
       .reduce((sum, t) => sum + t.amount, 0)
   }
 
   const getMonthBalance = (month: number, year: number, accountId?: string) => {
-    const starting = getStartingBalance(month, year, accountId)
-    const income = getTotalIncome(month, year, accountId)
-    const expense = getTotalExpenses(month, year, accountId)
-    return starting + income - expense
+    return getStartingBalance(month, year, accountId)
+      + getTotalIncome(month, year, accountId)
+      - getTotalExpenses(month, year, accountId)
   }
 
   return (
-    <FinanceContext.Provider
-      value={{
-        accounts,
-        transactions,
-        reminders,
-        budgets,
-        categories,
-        goals,
-        addAccount,
-        updateAccount,
-        deleteAccount,
-        addTransaction,
-        updateTransaction,
-        deleteTransaction,
-        addReminder,
-        updateReminder,
-        deleteReminder,
-        markReminderPaid,
-        updateBudget,
-        addBudget,
-        deleteBudget,
-        addCategory,
-        addGoal,
-        updateGoal,
-        deleteGoal,
-        addContribution,
-        getTotalBalance,
-        getTotalIncome,
-        getTotalExpenses,
-        getStartingBalance,
-        getMonthBalance,
-        isLoading,
-        isSidebarOpen,
-        setSidebarOpen,
-      }}
-    >
+    <FinanceContext.Provider value={{
+      accounts, transactions, reminders, budgets, categories, goals,
+      addAccount, updateAccount, deleteAccount,
+      addTransaction, updateTransaction, deleteTransaction,
+      addReminder, updateReminder, deleteReminder, markReminderPaid,
+      updateBudget, addBudget, deleteBudget,
+      addCategory,
+      addGoal, updateGoal, deleteGoal, addContribution,
+      getTotalBalance, getTotalIncome, getTotalExpenses,
+      getStartingBalance, getMonthBalance,
+      refetchAll,
+      isLoading, isSidebarOpen, setSidebarOpen,
+    }}>
       {children}
     </FinanceContext.Provider>
   )
@@ -417,8 +334,6 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
 export function useFinance() {
   const context = useContext(FinanceContext)
-  if (!context) {
-    throw new Error("useFinance must be used within a FinanceProvider")
-  }
+  if (!context) throw new Error("useFinance must be used within a FinanceProvider")
   return context
 }

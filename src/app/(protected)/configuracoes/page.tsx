@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { AppShell } from "@/components/AppShell"
 import { authClient } from "@/lib/auth-client"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,8 @@ export default function ConfiguracoesPage() {
     
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
+    const [profileImage, setProfileImage] = useState<string | null>(null)
+    const imageInitialized = useRef(false)
     const [isLoading, setIsLoading] = useState(false)
     const [isUploading, setIsUploading] = useState(false)
     const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null)
@@ -36,6 +38,11 @@ export default function ConfiguracoesPage() {
         if (session?.user) {
             setName(session.user.name || "")
             setEmail(session.user.email || "")
+            // Inicializa a imagem apenas uma vez, não sobrescreve o estado local após upload
+            if (!imageInitialized.current) {
+                setProfileImage(session.user.image || null)
+                imageInitialized.current = true
+            }
         }
     }, [session])
 
@@ -54,6 +61,8 @@ export default function ConfiguracoesPage() {
             } else {
                 setMessage({ type: "success", text: "Perfil atualizado com sucesso!" })
                 setTimeout(() => setMessage(null), 3000)
+                // Força o re-fetch da sessão para o hook useSession() atualizar
+                await authClient.getSession({ fetchOptions: { cache: "no-store" } })
                 router.refresh()
             }
         } catch {
@@ -79,8 +88,13 @@ export default function ConfiguracoesPage() {
             })
 
             if (res.ok) {
+                const data = await res.json()
+                // Atualiza a imagem localmente de imediato (sem esperar cache do useSession)
+                setProfileImage(data.publicPath)
                 setMessage({ type: "success", text: "Foto de perfil atualizada!" })
                 setTimeout(() => setMessage(null), 3000)
+                // Força re-fetch da sessão para sincronizar o hook useSession()
+                await authClient.getSession({ fetchOptions: { cache: "no-store" } })
                 router.refresh()
             } else {
                 const data = await res.json()
@@ -131,10 +145,10 @@ export default function ConfiguracoesPage() {
                                 <div className="flex flex-col md:flex-row items-center gap-10">
                                     <div className="relative group">
                                         <div className="h-32 w-32 rounded-[2.5rem] overflow-hidden premium-gradient shadow-2xl ring-8 ring-background flex items-center justify-center transition-transform duration-500 group-hover:scale-105">
-                                            {session?.user?.image ? (
+                                            {profileImage ? (
                                                 <img 
-                                                    src={session.user.image} 
-                                                    alt={session.user.name} 
+                                                    src={profileImage} 
+                                                    alt={name} 
                                                     className="h-full w-full object-cover" 
                                                 />
                                             ) : (
